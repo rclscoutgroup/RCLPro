@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RCLPro - Scouting Data</title>
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;500;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { 
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Exo 2', 'sans-serif']
+                    },
+                    colors: {
+                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' },
+                        accent: { 400: '#fbbf24', 500: '#f59e0b' },
+                        dark: { 800: '#1e293b', 900: '#0f172a' },
+                        danger: { 500: '#ef4444', 50: '#fef2f2' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f8fafc; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body>
+
+<div id="app" class="flex h-screen overflow-hidden text-slate-800 font-sans">
+
+    <aside class="w-64 bg-dark-900 text-white flex flex-col shadow-2xl z-20 shrink-0">
+        <div class="h-20 flex items-center gap-3 px-6 border-b border-slate-800 bg-dark-900">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg overflow-hidden shrink-0">
+                <img v-if="appLogo" :src="appLogo" class="w-full h-full object-cover">
+                <span v-else class="font-display font-bold text-lg">R</span>
+            </div>
+            <div>
+                <h1 class="font-display font-bold text-xl tracking-wide">RCL<span class="text-brand-400">Pro</span></h1>
+                <p class="text-[10px] text-slate-400 uppercase tracking-wider">Analytics Suite</p>
+            </div>
+        </div>
+
+        <nav class="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+            <template v-for="item in menuItems" :key="item.id">
+                <button @click="currentView = item.id"
+                    :class="['w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative', 
+                             currentView === item.id ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white']">
+                    <div v-if="currentView === item.id" class="absolute left-0 w-1 h-8 bg-accent-400 rounded-r-full"></div>
+                    <i :class="item.icon" class="w-6 text-center text-lg transition-colors group-hover:text-accent-400"></i>
+                    <span class="font-medium text-sm tracking-wide">{{ item.label }}</span>
+                </button>
+            </template>
+        </nav>
+
+        <div class="p-4 border-t border-slate-800 bg-dark-800">
+            <div class="flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full" :class="totalPlayers > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'"></div>
+                <div class="text-xs text-slate-400">
+                    <span class="block font-semibold text-slate-200">{{ totalPlayers }} Jugadores</span>
+                    <span class="block">{{ Object.keys(leagues).length }} Ligas cargadas</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col bg-slate-50 relative overflow-hidden">
+        
+        <header class="h-20 bg-white shadow-sm flex items-center justify-between px-8 z-10 shrink-0">
+            <div>
+                <h2 class="text-2xl font-display font-bold text-slate-800">{{ currentTitle }}</h2>
+                <p class="text-sm text-slate-500">{{ currentSubtitle }}</p>
+            </div>
+            <div v-if="totalPlayers > 0" class="hidden md:flex gap-6">
+                <div class="text-right">
+                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Base de Datos</div>
+                    <div class="font-display font-bold text-brand-600">{{ totalPlayers }} <span class="text-slate-400 text-sm font-normal">perfiles</span></div>
+                </div>
+                <div class="h-10 w-px bg-slate-200"></div>
+                <div class="text-right">
+                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Clubes</div>
+                    <div class="font-display font-bold text-slate-700">{{ uniqueClubs.length }} <span class="text-slate-400 text-sm font-normal">equipos</span></div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-6 md:p-8 relative scroll-smooth">
+            <transition name="fade" mode="out-in">
+                
+                <div v-if="currentView === 'import'" class="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="p-1 bg-gradient-to-r from-brand-500 to-accent-400"></div>
+                        <div class="p-10 text-center">
+                            <div class="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-6 text-brand-500 text-3xl">
+                                <i class="fas fa-file-excel"></i>
+                            </div>
+                            <h3 class="text-2xl font-display font-bold text-slate-900 mb-2">Importar Base de Datos</h3>
+                            <p class="text-slate-500 mb-8 max-w-lg mx-auto">Sube tu archivo Excel (.xlsx). El sistema separará automáticamente los goles a favor de los goles encajados (porteros).</p>
+                            
+                            <label class="block w-full max-w-xl mx-auto border-2 border-dashed border-slate-300 rounded-xl p-10 cursor-pointer hover:border-brand-500 hover:bg-brand-50 transition-all group">
+                                <input type="file" class="hidden" accept=".xlsx, .xls" @change="handleFileUpload">
+                                <div class="flex flex-col items-center gap-3">
+                                    <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 group-hover:text-brand-500 transition-colors"></i>
+                                    <span class="text-slate-600 font-medium group-hover:text-brand-700">Click para seleccionar archivo Excel</span>
+                                </div>
+                            </label>
+                            
+                            <div v-if="loading" class="mt-6 flex items-center justify-center gap-3 text-brand-600 font-medium">
+                                <i class="fas fa-circle-notch fa-spin"></i> Procesando datos...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-6">
+                        <div class="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
+                            <img v-if="appLogo" :src="appLogo" class="w-full h-full object-cover">
+                            <i v-else class="fas fa-image text-slate-300 text-2xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-slate-900">Personalizar Marca</h4>
+                            <p class="text-sm text-slate-500 mb-2">Sube el logo de tu agencia o club.</p>
+                            <input type="file" accept="image/*" @change="handleLogoUpload" class="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"/>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="currentView === 'players'" class="space-y-6">
+                    <div class="bg-white p-2 rounded-xl shadow-sm border border-slate-200 flex gap-2 max-w-2xl">
+                        <div class="flex-1 relative">
+                            <i class="fas fa-search absolute left-4 top-3.5 text-slate-400"></i>
+                            <input v-model="searchQuery" type="text" placeholder="Buscar por nombre, posición o equipo..." class="w-full pl-10 pr-4 py-3 rounded-lg focus:bg-slate-50 focus:outline-none text-slate-700 placeholder-slate-400">
+                        </div>
+                        <div class="px-4 py-3 bg-slate-50 rounded-lg text-sm font-medium text-slate-500 border border-slate-100">
+                            {{ filteredPlayers.length }} resultados
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div v-for="player in paginatedPlayers" :key="player.id" @click="openPlayerProfile(player)" 
+                             class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer card-hover group relative">
+                            <div class="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded uppercase font-bold tracking-wider">
+                                {{ player.leagueName }}
+                            </div>
+                            <div class="h-24 bg-dark-900 relative overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-t from-dark-900 to-transparent opacity-80"></div>
+                                <img :src="player['URL Escudo']" class="absolute right-0 top-0 w-32 h-32 object-contain opacity-10 transform translate-x-8 -translate-y-8 rotate-12">
+                            </div>
+                            <div class="px-5 pb-5 relative">
+                                <div class="w-20 h-20 rounded-full border-4 border-white bg-slate-200 -mt-10 overflow-hidden shadow-md relative z-10 group-hover:scale-105 transition-transform">
+                                    <img :src="player['URL Imagen']" @error="setDefaultImage" class="w-full h-full object-cover">
+                                </div>
+                                <div class="mt-3">
+                                    <h4 class="font-display font-bold text-lg text-slate-900 truncate leading-tight">{{ player.Nombre }}</h4>
+                                    <p class="text-xs font-medium text-brand-600 uppercase tracking-wide mb-1">{{ player['Equipo Actual'] }}</p>
+                                    <div class="flex items-center justify-between text-sm text-slate-500 mt-2">
+                                        <span>{{ player.Posición }}</span>
+                                        <span class="font-semibold text-slate-700">{{ player.Edad }} años</span>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-3 gap-2 py-3 border-t border-slate-100">
+                                        <div class="text-center">
+                                            <div class="text-[10px] text-slate-400 uppercase">Min</div>
+                                            <div class="font-bold text-slate-800">{{ player['Minutos Jugados'] }}</div>
+                                        </div>
+                                        <div class="text-center border-l border-slate-100">
+                                            <div class="text-[10px] text-slate-400 uppercase">{{ player.isGK ? 'Encajados' : 'Goles' }}</div>
+                                            <div :class="['font-bold', player.isGK ? 'text-danger-500' : 'text-brand-600']">
+                                                {{ player.isGK ? player['Goles_Contra'] : player['Goles_Favor'] }}
+                                            </div>
+                                        </div>
+                                        <div class="text-center border-l border-slate-100">
+                                            <div class="text-[10px] text-slate-400 uppercase">Titular</div>
+                                            <div class="font-bold text-slate-800">{{ player.Titular }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="currentView === 'profile'" class="max-w-6xl mx-auto animate-fade-in-up">
+                    <button @click="currentView = 'players'" class="mb-6 flex items-center gap-2 text-slate-500 hover:text-brand-600 transition-colors font-medium">
+                        <i class="fas fa-arrow-left"></i> Volver al listado
+                    </button>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div class="lg:col-span-4 space-y-6">
+                            <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden relative">
+                                <div class="h-32 bg-gradient-to-br from-dark-800 to-dark-900"></div>
+                                <div class="px-8 pb-8 text-center relative">
+                                    <div class="w-32 h-32 mx-auto -mt-16 rounded-full border-[6px] border-white shadow-xl overflow-hidden bg-white">
+                                        <img :src="selectedPlayer['URL Imagen']" @error="setDefaultImage" class="w-full h-full object-cover">
+                                    </div>
+                                    <h2 class="mt-4 text-2xl font-display font-bold text-slate-900">{{ selectedPlayer.Nombre }}</h2>
+                                    <div class="inline-flex items-center gap-2 mt-2 px-3 py-1 bg-slate-100 rounded-full text-sm font-medium text-slate-600">
+                                        <span class="w-2 h-2 rounded-full bg-brand-500"></span>
+                                        {{ selectedPlayer.Posición }}
+                                    </div>
+                                    <div class="mt-6 flex items-center justify-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                        <img :src="selectedPlayer['URL Escudo']" class="w-12 h-12 object-contain">
+                                        <div class="text-left">
+                                            <div class="text-xs text-slate-400 uppercase font-bold">Club Actual</div>
+                                            <div class="font-bold text-slate-800 leading-tight">{{ selectedPlayer['Equipo Actual'] }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-6 space-y-3">
+                                        <a :href="selectedPlayer['URL Ficha']" target="_blank" class="flex items-center justify-center w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-brand-500/30">
+                                            Ver Ficha Técnica <i class="fas fa-external-link-alt ml-2 text-xs"></i>
+                                        </a>
+                                        <button @click="addToCompare(selectedPlayer)" class="flex items-center justify-center w-full py-3 bg-white border-2 border-brand-100 text-brand-600 hover:border-brand-500 hover:bg-brand-50 rounded-xl font-bold transition-all">
+                                            <i class="fas fa-radar ml-2 mr-2"></i> Añadir a Comparador
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-8 space-y-6">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
+                                    <div :class="['text-3xl font-display font-bold', selectedPlayer.isGK ? 'text-danger-500' : 'text-brand-500']">
+                                        {{ selectedPlayer.isGK ? selectedPlayer['Goles_Contra'] : selectedPlayer['Goles_Favor'] }}
+                                    </div>
+                                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">
+                                        {{ selectedPlayer.isGK ? 'Goles Encajados' : 'Goles a Favor' }}
+                                    </div>
+                                </div>
+                                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
+                                    <div class="text-3xl font-display font-bold text-slate-800">{{ selectedPlayer['Minutos Jugados'] }}</div>
+                                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">Minutos</div>
+                                </div>
+                                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
+                                    <div class="text-3xl font-display font-bold text-slate-800">{{ selectedPlayer['Titular'] }}</div>
+                                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">Titular</div>
+                                </div>
+                                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
+                                    <div class="text-3xl font-display font-bold text-slate-800">{{ selectedPlayer.Edad }}</div>
+                                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">Edad</div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                                <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                                    <i class="fas fa-chart-bar text-brand-500"></i> Rendimiento vs Liga
+                                </h3>
+                                <div class="space-y-6">
+                                    <div v-for="stat in statMetrics" :key="stat.key">
+                                        <div class="flex justify-between text-sm mb-2">
+                                            <span class="font-medium text-slate-600">{{ stat.label }}</span>
+                                            <span class="font-bold text-slate-900">{{ selectedPlayer[stat.key] || 0 }} <span class="text-slate-400 font-normal text-xs">/ máx {{ stat.max }}</span></span>
+                                        </div>
+                                        <div class="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                                            <div class="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full relative" :style="{ width: getPercentage(selectedPlayer[stat.key], stat.max) + '%' }">
+                                                <div class="absolute right-0 top-0 bottom-0 w-px bg-white/50"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="currentView === 'clubs'" class="space-y-6">
+                    <input v-model="clubSearch" type="text" placeholder="Buscar Club..." class="w-full px-5 py-4 rounded-xl border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div v-for="club in filteredClubs" :key="club.name" @click="openClubProfile(club)" 
+                             class="bg-white p-6 rounded-xl shadow-sm hover:shadow-lg border border-slate-100 cursor-pointer flex items-center gap-4 transition-all group">
+                            <div class="w-16 h-16 p-2 bg-slate-50 rounded-lg flex items-center justify-center shrink-0">
+                                <img :src="club.logo" class="w-full h-full object-contain group-hover:scale-110 transition-transform">
+                            </div>
+                            <div class="overflow-hidden">
+                                <h3 class="font-bold text-lg text-slate-900 truncate">{{ club.name }}</h3>
+                                <div class="flex items-center gap-3 mt-1">
+                                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{{ club.players.length }} Jugadores</span>
+                                    <span class="text-xs text-brand-600 font-bold">{{ club.stats.totalGoalsFor }} GF</span>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right ml-auto text-slate-300 group-hover:text-brand-500 transition-colors"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="currentView === 'clubProfile'" class="space-y-6 animate-fade-in-up">
+                    <button @click="currentView = 'clubs'" class="text-slate-500 hover:text-brand-600 font-medium flex items-center gap-2">
+                        <i class="fas fa-arrow-left"></i> Volver a Clubes
+                    </button>
+                    <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+                        <div class="p-8 bg-dark-900 text-white flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
+                            <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 20px 20px;"></div>
+                            <div class="w-32 h-32 bg-white rounded-2xl p-4 flex items-center justify-center shadow-2xl relative z-10">
+                                <img :src="selectedClub.logo" class="w-full h-full object-contain">
+                            </div>
+                            <div class="text-center md:text-left flex-1 relative z-10">
+                                <h1 class="text-4xl font-display font-bold">{{ selectedClub.name }}</h1>
+                                <p class="text-slate-400 mt-1 flex items-center justify-center md:justify-start gap-2">
+                                    <i class="fas fa-layer-group"></i> {{ selectedClub.players[0].leagueName }}
+                                </p>
+                                <div class="flex flex-wrap gap-4 mt-6 justify-center md:justify-start">
+                                    <div class="bg-white/10 backdrop-blur px-5 py-2 rounded-lg border border-white/10">
+                                        <div class="text-xs text-slate-400 uppercase tracking-wider">Edad Media</div>
+                                        <div class="font-bold text-xl">{{ selectedClub.stats.avgAge }}</div>
+                                    </div>
+                                    <div class="bg-brand-500/20 backdrop-blur px-5 py-2 rounded-lg border border-brand-500/30">
+                                        <div class="text-xs text-brand-300 uppercase tracking-wider">Goles a Favor</div>
+                                        <div class="font-bold text-xl text-brand-400">{{ selectedClub.stats.totalGoalsFor }}</div>
+                                    </div>
+                                    <div class="bg-red-500/20 backdrop-blur px-5 py-2 rounded-lg border border-red-500/30">
+                                        <div class="text-xs text-red-300 uppercase tracking-wider">Goles en Contra</div>
+                                        <div class="font-bold text-xl text-red-400">{{ selectedClub.stats.totalGoalsAgainst }}</div>
+                                    </div>
+                                    <div class="bg-white/10 backdrop-blur px-5 py-2 rounded-lg border border-white/10">
+                                        <div class="text-xs text-slate-400 uppercase tracking-wider">Plantilla</div>
+                                        <div class="font-bold text-xl">{{ selectedClub.players.length }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-0">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="text-xs text-slate-500 border-b border-slate-100 bg-slate-50">
+                                            <th class="p-4 font-bold uppercase tracking-wider">Jugador</th>
+                                            <th class="p-4 font-bold uppercase tracking-wider">Posición</th>
+                                            <th class="p-4 font-bold uppercase tracking-wider text-center">Edad</th>
+                                            <th class="p-4 font-bold uppercase tracking-wider text-center">Minutos</th>
+                                            <th class="p-4 font-bold uppercase tracking-wider text-center">Datos Gol</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-sm">
+                                        <tr v-for="p in selectedClub.players" :key="p.id" @click="openPlayerProfile(p)" 
+                                            class="hover:bg-brand-50/50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors">
+                                            <td class="p-4 font-medium text-slate-900 flex items-center gap-3">
+                                                <img :src="p['URL Imagen']" @error="setDefaultImage" class="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm">
+                                                {{ p.Nombre }}
+                                            </td>
+                                            <td class="p-4 text-slate-500">{{ p.Posición }}</td>
+                                            <td class="p-4 text-slate-500 text-center">{{ p.Edad }}</td>
+                                            <td class="p-4 text-slate-500 text-center">{{ p['Minutos Jugados'] }}</td>
+                                            <td class="p-4 text-center">
+                                                <span v-if="p.isGK" class="font-bold text-red-500 bg-red-50 px-2 py-1 rounded text-xs">-{{ p['Goles_Contra'] }} (Enc)</span>
+                                                <span v-else class="font-bold text-brand-600">{{ p['Goles_Favor'] }}</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="currentView === 'compare'" class="h-full flex flex-col space-y-6">
+                    <div class="flex justify-between items-end shrink-0">
+                        <div>
+                            <h3 class="text-xl font-bold text-slate-800">Comparador de Rendimiento</h3>
+                            <p class="text-sm text-slate-500">Añade hasta 3 jugadores desde sus perfiles.</p>
+                        </div>
+                        <button @click="comparisonList = []" v-if="comparisonList.length > 0" class="text-red-500 text-sm font-medium hover:bg-red-50 px-3 py-1 rounded transition-colors">Limpiar todo</button>
+                    </div>
+                    <div class="flex-1 flex flex-col lg:flex-row gap-8 min-h-0">
+                        <div class="w-full lg:w-80 space-y-4 overflow-y-auto pr-2">
+                            <div v-if="comparisonList.length === 0" class="p-8 border-2 border-dashed border-slate-300 rounded-2xl text-center text-slate-400 bg-slate-50">
+                                <i class="fas fa-plus-circle text-4xl mb-3 opacity-50"></i>
+                                <p class="text-sm">Selecciona jugadores para comenzar</p>
+                            </div>
+                            <transition-group name="list">
+                                <div v-for="(p, index) in comparisonList" :key="p.id" class="bg-white p-4 rounded-xl shadow-sm flex items-center gap-3 border-l-4 relative group" :style="{ borderColor: chartColors[index].border }">
+                                    <img :src="p['URL Imagen']" @error="setDefaultImage" class="w-12 h-12 rounded-full object-cover border border-slate-100">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-bold text-slate-900 truncate">{{ p.Nombre }}</div>
+                                        <div class="text-xs text-slate-500 truncate">{{ p['Equipo Actual'] }}</div>
+                                        <div class="text-[10px] text-slate-400 uppercase font-bold mt-1" v-if="p.isGK">Portero</div>
+                                    </div>
+                                    <button @click="removeFromCompare(index)" class="absolute top-2 right-2 text-slate-300 hover:text-red-500 transition-colors p-1"><i class="fas fa-times"></i></button>
+                                </div>
+                            </transition-group>
+                            <button v-if="comparisonList.length > 0 && comparisonList.length < 3" @click="currentView = 'players'" class="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:border-brand-500 hover:text-brand-500 hover:bg-white transition-all font-medium text-sm">
+                                <i class="fas fa-plus mr-2"></i> Añadir otro jugador
+                            </button>
+                        </div>
+                        <div class="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-center relative min-h-[400px]">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="currentView === 'filter'" class="space-y-4">
+                     <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-filter text-brand-500"></i> Filtros Activos</h3>
+                            <div class="flex gap-2">
+                                <button @click="resetFilters" class="text-sm text-slate-400 hover:text-red-500 font-medium px-3 transition-colors">Limpiar Todo</button>
+                                <button @click="addFilter" class="bg-brand-50 text-brand-600 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-brand-100 transition-colors">+ Añadir Filtro</button>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div v-for="(filter, index) in filters" :key="index" class="flex flex-wrap gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-100 animate-fade-in-up">
+                                <select v-model="filter.column" @change="resetFilterValues(filter)" class="border border-slate-200 p-2 rounded-lg text-sm bg-white focus:outline-none focus:border-brand-500 w-40">
+                                    <option value="">Columna...</option>
+                                    <option v-for="header in headers" :key="header" :value="header">{{ header }}</option>
+                                </select>
+                                <select v-if="filter.column" v-model="filter.operator" class="border border-slate-200 p-2 rounded-lg text-sm bg-white focus:outline-none focus:border-brand-500 w-32">
+                                    <template v-if="isNumericColumn(filter.column)">
+                                        <option value="gt">Mayor que (>)</option>
+                                        <option value="lt">Menor que (<)</option>
+                                        <option value="eq">Igual a (=)</option>
+                                        <option value="bt">Entre (Rango)</option>
+                                    </template>
+                                    <template v-else>
+                                        <option value="contains">Contiene</option>
+                                        <option value="eq">Es igual a</option>
+                                    </template>
+                                </select>
+                                <div class="flex gap-2 flex-1">
+                                    <input v-model="filter.value" :type="isNumericColumn(filter.column) ? 'number' : 'text'" placeholder="Valor..." class="border border-slate-200 p-2 rounded-lg text-sm w-full bg-white focus:outline-none focus:border-brand-500">
+                                    <input v-if="filter.operator === 'bt'" v-model="filter.value2" type="number" placeholder="Máx..." class="border border-slate-200 p-2 rounded-lg text-sm w-24 bg-white focus:outline-none focus:border-brand-500">
+                                </div>
+                                <button @click="removeFilter(index)" class="text-slate-400 hover:text-red-500 p-2"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 text-slate-600 uppercase font-bold text-xs">
+                                    <tr>
+                                        <th class="p-4">Nombre</th>
+                                        <th class="p-4">Equipo</th>
+                                        <th class="p-4">Posición</th>
+                                        <th class="p-4 text-center">Edad</th>
+                                        <th class="p-4 text-center">Minutos</th>
+                                        <th class="p-4 text-center">Goles/Enc</th>
+                                        <th class="p-4 text-center"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr v-for="player in filteredTablePlayers.slice(0, 50)" :key="player.id" class="hover:bg-slate-50 transition-colors">
+                                        <td class="p-4 font-medium text-slate-900">{{ player.Nombre }}</td>
+                                        <td class="p-4 text-slate-500">{{ player['Equipo Actual'] }}</td>
+                                        <td class="p-4 text-slate-500">{{ player.Posición }}</td>
+                                        <td class="p-4 text-center text-slate-600">{{ player.Edad }}</td>
+                                        <td class="p-4 text-center text-slate-600">{{ player['Minutos Jugados'] }}</td>
+                                        <td class="p-4 text-center">
+                                            <span :class="['font-bold', player.isGK ? 'text-red-500' : 'text-brand-600']">
+                                                {{ player.isGK ? player['Goles_Contra'] : player['Goles_Favor'] }}
+                                            </span>
+                                        </td>
+                                        <td class="p-4 text-center">
+                                            <button @click="openPlayerProfile(player)" class="text-brand-500 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 p-2 rounded-lg transition-colors"><i class="fas fa-eye"></i></button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="bg-slate-50 p-3 text-center text-xs text-slate-400 border-t border-slate-100">
+                            Mostrando {{ Math.min(filteredTablePlayers.length, 50) }} de {{ filteredTablePlayers.length }} resultados
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="currentView === 'leagues'" class="space-y-6">
+                    <div v-for="(leagueData, leagueName) in groupedLeagues" :key="leagueName" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="bg-slate-50 p-5 flex justify-between items-center cursor-pointer border-b border-slate-100 hover:bg-slate-100 transition-colors" @click="leagueData.expanded = !leagueData.expanded">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-brand-500 border border-slate-100">
+                                    <i class="fas fa-trophy"></i>
+                                </div>
+                                <h3 class="font-bold text-lg text-slate-800">{{ leagueName }}</h3>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <span class="text-sm text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200">{{ leagueData.clubs.length }} Clubes</span>
+                                <i :class="['fas text-slate-400 transition-transform duration-300', leagueData.expanded ? 'fa-chevron-up rotate-180' : 'fa-chevron-down']"></i>
+                            </div>
+                        </div>
+                        <transition name="fade">
+                            <div v-if="leagueData.expanded" class="p-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                <div v-for="club in leagueData.clubs" :key="club.name" @click="openClubProfile(club)" 
+                                     class="flex flex-col items-center gap-3 p-4 border border-slate-100 rounded-xl hover:border-brand-500 hover:shadow-md cursor-pointer transition-all bg-white group">
+                                    <img :src="club.logo" class="w-12 h-12 object-contain group-hover:scale-110 transition-transform">
+                                    <span class="font-medium text-sm text-center text-slate-700 leading-tight line-clamp-2">{{ club.name }}</span>
+                                </div>
+                            </div>
+                        </transition>
+                    </div>
+                </div>
+
+            </transition>
+        </div>
+    </main>
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        data() {
+            return {
+                currentView: 'import',
+                appLogo: null,
+                allPlayers: [],
+                leagues: {}, 
+                searchQuery: '',
+                clubSearch: '',
+                selectedPlayer: null,
+                selectedClub: null,
+                comparisonList: [],
+                headers: [],
+                filters: [{ column: '', operator: 'contains', value: '', value2: '' }],
+                loading: false,
+                radarChartInstance: null,
+                chartColors: [
+                    { border: '#0ea5e9', bg: 'rgba(14, 165, 233, 0.2)' },
+                    { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' },
+                    { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.2)' }
+                ],
+                menuItems: [
+                    { id: 'import', label: 'Importar', icon: 'fas fa-cloud-upload-alt' },
+                    { id: 'players', label: 'Scouting', icon: 'fas fa-users' },
+                    { id: 'clubs', label: 'Clubes', icon: 'fas fa-shield-alt' },
+                    { id: 'compare', label: 'Comparador', icon: 'fas fa-chart-radar' },
+                    { id: 'filter', label: 'Data Lab', icon: 'fas fa-table' },
+                    { id: 'leagues', label: 'Competiciones', icon: 'fas fa-trophy' },
+                ],
+                // We keep keys for mapping, but handle 'Total Goles' dynamically in logic
+                statMetrics: [
+                    { key: 'Goles_Favor', label: 'Goles', max: 1 },
+                    { key: 'Goles_Contra', label: 'Encajados', max: 1 }, // Added for calculation
+                    { key: 'Minutos Jugados', label: 'Minutos', max: 1 },
+                    { key: 'Titular', label: 'Titularidades', max: 1 },
+                    { key: 'Convocados', label: 'Convocatorias', max: 1 }
+                ],
+                numericColumns: ['Edad', 'Total Goles', 'Minutos Jugados', 'Titular', 'Suplente', 'Convocados', 'Jugados', 'Amarillas', 'Rojas', 'Goles_Favor', 'Goles_Contra']
+            }
+        },
+        computed: {
+            currentTitle() {
+                const titles = {
+                    import: 'Configuración',
+                    players: 'Base de Datos de Talentos',
+                    profile: 'Ficha Técnica',
+                    clubs: 'Directorio de Clubes',
+                    clubProfile: 'Análisis de Club',
+                    compare: 'Análisis Comparativo',
+                    filter: 'Explorador Avanzado (Data Lab)',
+                    leagues: 'Ligas y Grupos'
+                };
+                return titles[this.currentView];
+            },
+            currentSubtitle() {
+                const subtitles = {
+                    import: 'Carga tus archivos Excel (.xlsx) para comenzar el análisis.',
+                    players: 'Busca, filtra y selecciona jugadores para un análisis profundo.',
+                    profile: 'Detalles individuales, rendimiento y métricas clave.',
+                    clubs: 'Visión general de equipos, plantillas y estadísticas agregadas.',
+                    clubProfile: 'Profundiza en la estructura y rendimiento del equipo.',
+                    compare: 'Comparación visual híbrida (Porteros vs Jugadores).',
+                    filter: 'Aplica múltiples filtros para encontrar perfiles específicos.',
+                    leagues: 'Organización de clubes por competición.'
+                };
+                return subtitles[this.currentView];
+            },
+            totalPlayers() { return this.allPlayers.length; },
+            filteredPlayers() {
+                if (!this.searchQuery) return this.allPlayers;
+                const q = this.searchQuery.toLowerCase();
+                return this.allPlayers.filter(p => 
+                    (p.Nombre && p.Nombre.toLowerCase().includes(q)) || 
+                    (p['Equipo Actual'] && p['Equipo Actual'].toLowerCase().includes(q)) ||
+                    (p.Posición && p.Posición.toLowerCase().includes(q))
+                );
+            },
+            paginatedPlayers() { return this.filteredPlayers.slice(0, 32); },
+            uniqueClubs() {
+                const clubs = {};
+                this.allPlayers.forEach(p => {
+                    const cName = p['Equipo Actual'];
+                    if (!cName) return;
+                    if (!clubs[cName]) {
+                        clubs[cName] = { 
+                            name: cName, 
+                            logo: p['URL Escudo'], 
+                            players: [],
+                            stats: { totalGoalsFor: 0, totalGoalsAgainst: 0, totalAge: 0, count: 0 }
+                        };
+                    }
+                    clubs[cName].players.push(p);
+                    clubs[cName].stats.totalGoalsFor += p['Goles_Favor'];
+                    clubs[cName].stats.totalGoalsAgainst += p['Goles_Contra'];
+                    if(p.Edad > 0) {
+                        clubs[cName].stats.totalAge += p.Edad;
+                        clubs[cName].stats.count++;
+                    }
+                });
+                Object.values(clubs).forEach(c => {
+                    c.stats.avgAge = c.stats.count ? (c.stats.totalAge / c.stats.count).toFixed(1) : 0;
+                });
+                return Object.values(clubs).sort((a,b) => a.name.localeCompare(b.name));
+            },
+            filteredClubs() {
+                if (!this.clubSearch) return this.uniqueClubs;
+                return this.uniqueClubs.filter(c => c.name.toLowerCase().includes(this.clubSearch.toLowerCase()));
+            },
+            filteredTablePlayers() {
+                if (this.filters.length === 1 && !this.filters[0].column) return this.allPlayers;
+                return this.allPlayers.filter(p => {
+                    return this.filters.every(filter => {
+                        if (!filter.column || filter.value === '') return true; 
+                        const isNumeric = this.isNumericColumn(filter.column);
+                        let rawVal = p[filter.column];
+                        if(filter.column === 'Total Goles') rawVal = p.isGK ? p['Goles_Contra'] : p['Goles_Favor'];
+                        if (rawVal === undefined || rawVal === null) return false;
+                        if (isNumeric) {
+                            const numVal = parseFloat(rawVal) || 0;
+                            const val1 = parseFloat(filter.value);
+                            const val2 = parseFloat(filter.value2);
+                            if (isNaN(val1)) return true; 
+                            switch (filter.operator) {
+                                case 'gt': return numVal > val1;
+                                case 'lt': return numVal < val1;
+                                case 'eq': return numVal === val1;
+                                case 'bt': return (!isNaN(val2)) ? (numVal >= val1 && numVal <= val2) : (numVal >= val1);
+                                default: return true;
+                            }
+                        } else {
+                            const strVal = rawVal.toString().toLowerCase();
+                            const query = filter.value.toLowerCase();
+                            if (filter.operator === 'eq') return strVal === query;
+                            return strVal.includes(query); 
+                        }
+                    });
+                });
+            },
+            groupedLeagues() {
+                const res = {};
+                this.uniqueClubs.forEach(club => {
+                    const leagueName = club.players[0].leagueName || 'General';
+                    if(!res[leagueName]) res[leagueName] = { clubs: [], expanded: true };
+                    res[leagueName].clubs.push(club);
+                });
+                return res;
+            }
+        },
+        watch: {
+            comparisonList: { deep: true, handler() { this.$nextTick(() => { if (this.currentView === 'compare') this.renderChart(); }); }},
+            currentView(newVal) { if (newVal === 'compare') { this.$nextTick(() => this.renderChart()); } },
+            allPlayers() { this.calculateMaxStats(); }
+        },
+        methods: {
+            isNumericColumn(colName) { return this.numericColumns.includes(colName); },
+            addFilter() { this.filters.push({ column: '', operator: 'contains', value: '', value2: '' }); },
+            removeFilter(index) { if(this.filters.length > 1) { this.filters.splice(index, 1); } else { this.resetFilters(); } },
+            resetFilters() { this.filters = [{ column: '', operator: 'contains', value: '', value2: '' }]; },
+            resetFilterValues(filter) { filter.value = ''; filter.value2 = ''; filter.operator = this.isNumericColumn(filter.column) ? 'gt' : 'contains'; },
+            cleanNumber(val) {
+                if (typeof val === 'number') return val;
+                if (!val) return 0;
+                const cleaned = val.toString().replace(/[^\d.-]/g, '');
+                return parseInt(cleaned) || 0;
+            },
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                this.loading = true;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        workbook.SheetNames.forEach(sheetName => {
+                            const worksheet = workbook.Sheets[sheetName];
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                            const cleanData = jsonData.map((p, idx) => {
+                                const rawGoals = this.cleanNumber(p['Total Goles']);
+                                const isGK = p['Posición'] && p['Posición'].toLowerCase().includes('portero');
+                                return {
+                                    ...p,
+                                    id: sheetName + '_' + idx + '_' + Math.random().toString(36).substr(2, 5),
+                                    leagueName: sheetName,
+                                    isGK: isGK,
+                                    'Goles_Favor': isGK ? 0 : rawGoals,
+                                    'Goles_Contra': isGK ? rawGoals : 0,
+                                    'Total Goles': rawGoals,
+                                    'Minutos Jugados': this.cleanNumber(p['Minutos Jugados']),
+                                    'Edad': this.cleanNumber(p['Edad']),
+                                    'Titular': this.cleanNumber(p['Titular']),
+                                    'Convocados': this.cleanNumber(p['Convocados']),
+                                    'Amarillas': this.cleanNumber(p['Amarillas']),
+                                    'Rojas': this.cleanNumber(p['Rojas'])
+                                };
+                            });
+                            if (jsonData.length > 0 && this.headers.length === 0) { this.headers = Object.keys(jsonData[0]); }
+                            this.allPlayers = [...this.allPlayers, ...cleanData];
+                        });
+                        setTimeout(() => { this.loading = false; this.currentView = 'players'; }, 800);
+                    } catch (error) {
+                        console.error(error);
+                        alert("Error al leer Excel.");
+                        this.loading = false;
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            },
+            handleLogoUpload(event) {
+                const file = event.target.files[0];
+                if (file) this.appLogo = URL.createObjectURL(file);
+            },
+            openPlayerProfile(player) { this.selectedPlayer = player; this.currentView = 'profile'; },
+            openClubProfile(club) { this.selectedClub = club; this.currentView = 'clubProfile'; },
+            setDefaultImage(e) { e.target.src = "https://ui-avatars.com/api/?name=User&background=cbd5e1&color=fff"; },
+            addToCompare(player) {
+                if (this.comparisonList.length >= 3) { alert("Máximo 3 jugadores para comparar"); return; }
+                if (!this.comparisonList.find(p => p.id === player.id)) { this.comparisonList.push(player); this.currentView = 'compare'; }
+            },
+            removeFromCompare(index) { this.comparisonList.splice(index, 1); },
+            calculateMaxStats() {
+                this.statMetrics.forEach(m => {
+                    const maxVal = Math.max(...this.allPlayers.map(p => p[m.key] || 0));
+                    m.max = maxVal > 0 ? maxVal : 10;
+                });
+            },
+            getPercentage(val, max) { return Math.min(100, ((val || 0) / max) * 100); },
+            renderChart() {
+                const ctx = document.getElementById('radarChart');
+                if (!ctx || this.comparisonList.length === 0) return;
+                if (this.radarChartInstance) this.radarChartInstance.destroy();
+
+                const maxGoalsFor = this.statMetrics.find(m => m.key === 'Goles_Favor').max || 10;
+                const maxGoalsAgainst = this.statMetrics.find(m => m.key === 'Goles_Contra').max || 10;
+
+                const datasets = this.comparisonList.map((player, i) => {
+                    // Hybrid Logic: If GK use Goals Against, if Player use Goals For
+                    const goalMetric = player.isGK ? player['Goles_Contra'] : player['Goles_Favor'];
+                    const goalMax = player.isGK ? maxGoalsAgainst : maxGoalsFor;
+                    
+                    return {
+                        label: player.Nombre + (player.isGK ? ' (GK)' : ''),
+                        data: [
+                            this.getPercentage(goalMetric, goalMax),
+                            this.getPercentage(player['Minutos Jugados'], this.statMetrics.find(m=>m.key==='Minutos Jugados').max),
+                            this.getPercentage(player['Titular'], this.statMetrics.find(m=>m.key==='Titular').max),
+                            this.getPercentage(player['Convocados'], this.statMetrics.find(m=>m.key==='Convocados').max),
+                            Math.min(100, (player.Edad / 40) * 100) 
+                        ],
+                        backgroundColor: this.chartColors[i].bg,
+                        borderColor: this.chartColors[i].border,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: this.chartColors[i].border,
+                        pointHoverBackgroundColor: '#fff',
+                        borderWidth: 2,
+                    }
+                });
+
+                this.radarChartInstance = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Goles / Encajados', 'Minutos', 'Titular', 'Convocados', 'Veteranía'],
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                angleLines: { color: '#e2e8f0' },
+                                grid: { color: '#e2e8f0' },
+                                pointLabels: { font: { size: 12, family: 'Inter', weight: '600' }, color: '#475569' },
+                                ticks: { display: false, backdropColor: 'transparent' },
+                                suggestedMin: 0,
+                                suggestedMax: 100
+                            }
+                        },
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { family: 'Inter' } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        // Custom Tooltip to show real values instead of %
+                                        const datasetIndex = context.datasetIndex;
+                                        const dataIndex = context.dataIndex;
+                                        const player = this.comparisonList ? this.comparisonList[datasetIndex] : null; // Access via closure if needed, tricky in ChartJS callback scope
+                                        return context.dataset.label + ': ' + Math.round(context.raw) + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        mounted() {
+            this.calculateMaxStats();
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
