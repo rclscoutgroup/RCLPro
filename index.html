@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RCLPro - Scouting Data</title>
+    <title>RCLPro - Scouting Data Suite</title>
     
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -23,11 +23,36 @@
                         display: ['Exo 2', 'sans-serif']
                     },
                     colors: {
-                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' },
-                        accent: { 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
-                        dark: { 800: '#1e293b', 900: '#0f172a' },
-                        danger: { 500: '#ef4444', 50: '#fef2f2' },
-                        success: { 500: '#10b981', 50: '#ecfdf5' }
+                        brand: { 
+                            50: '#f0f9ff', 
+                            100: '#e0f2fe', 
+                            400: '#38bdf8', 
+                            500: '#0ea5e9', 
+                            600: '#0284c7', 
+                            900: '#0c4a6e' 
+                        },
+                        accent: { 
+                            400: '#fbbf24', 
+                            500: '#f59e0b', 
+                            600: '#d97706' 
+                        },
+                        dark: { 
+                            800: '#1e293b', 
+                            900: '#0f172a' 
+                        },
+                        danger: { 
+                            500: '#ef4444', 
+                            50: '#fef2f2' 
+                        },
+                        success: { 
+                            500: '#10b981', 
+                            50: '#ecfdf5' 
+                        },
+                        pitch: { 
+                            light: '#34d399', 
+                            dark: '#059669', 
+                            line: 'rgba(255,255,255,0.7)' 
+                        }
                     }
                 }
             }
@@ -37,10 +62,14 @@
         body { background-color: #f8fafc; }
         .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
+        
+        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Effects */
         .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .card-hover:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
         
@@ -52,6 +81,27 @@
         .pos-3 { background-color: #b45309; color: #fff; } /* Bronze */
         .pos-up { background-color: #d1fae5; color: #065f46; } /* Promotion zone */
         .pos-down { background-color: #fee2e2; color: #991b1b; } /* Relegation */
+
+        /* SHADOW TEAM PITCH STYLES */
+        .soccer-pitch {
+            background: repeating-linear-gradient(0deg, #059669, #059669 50px, #10b981 50px, #10b981 100px);
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        .center-circle { width: 100px; height: 100px; border: 2px solid rgba(255,255,255,0.6); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); position: absolute; }
+        .half-line { width: 100%; height: 2px; background: rgba(255,255,255,0.6); top: 50%; left: 0; position: absolute; }
+        .penalty-area { width: 250px; height: 120px; border: 2px solid rgba(255,255,255,0.6); position: absolute; left: 50%; transform: translateX(-50%); }
+        .penalty-area-top { top: 0; border-top: none; }
+        .penalty-area-bottom { bottom: 0; border-bottom: none; }
+        
+        .player-token {
+            position: absolute; 
+            width: 100px; 
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease; 
+            z-index: 10;
+        }
+        .player-token:hover { z-index: 50; scale: 1.1; }
     </style>
 </head>
 <body>
@@ -257,7 +307,7 @@
                                     <div class="h-32 bg-gradient-to-br from-dark-800 to-dark-900"></div>
                                     <div class="px-8 pb-8 text-center relative">
                                         <div class="w-32 h-32 mx-auto -mt-16 rounded-full border-[6px] border-white shadow-xl overflow-hidden bg-white">
-                                            <img id="report-player-img" :src="selectedPlayer['URL Imagen']" @error="setDefaultImage" class="w-full h-full object-cover">
+                                            <img :src="selectedPlayer['URL Imagen']" @error="setDefaultImage" class="w-full h-full object-cover">
                                         </div>
                                         
                                         <div class="mt-4 flex items-center justify-center gap-2">
@@ -272,7 +322,7 @@
                                             {{ selectedPlayer.Posición }}
                                         </div>
                                         <div class="mt-6 flex items-center justify-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                            <img id="report-club-img" :src="selectedPlayer['URL Escudo']" class="w-12 h-12 object-contain">
+                                            <img :src="selectedPlayer['URL Escudo']" class="w-12 h-12 object-contain">
                                             <div class="text-left">
                                                 <div class="text-xs text-slate-400 uppercase font-bold">Club Actual</div>
                                                 <div class="font-bold text-slate-800 leading-tight">{{ selectedPlayer['Equipo Actual'] }}</div>
@@ -363,7 +413,7 @@
                                     <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                                         <i class="fas fa-edit text-accent-500"></i> Informe Técnico / Notas
                                     </h3>
-                                    <textarea v-model="playerNotes" class="w-full h-32 p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none transition-all text-sm leading-relaxed" placeholder="Escribe aquí tu análisis cualitativo del jugador..."></textarea>
+                                    <textarea v-model="playerNotes" class="w-full h-32 p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none transition-all text-sm leading-relaxed" placeholder="Escribe aquí tu análisis cualitativo del jugador (fortalezas, debilidades, personalidad...). Este texto aparecerá en el informe descargable."></textarea>
                                 </div>
 
                             </div>
@@ -831,7 +881,6 @@
                                             <tr v-for="team in allStandings[leagueName]" :key="team.Equipo" 
                                                 @click="openClubFromStanding(team.Equipo)"
                                                 class="standings-row border-b border-slate-50 last:border-0">
-                                                
                                                 <td class="p-3 text-center font-bold">
                                                     <div :class="['pos-badge mx-auto', 
                                                         team['Posición'] == 1 ? 'pos-1' : 
@@ -873,6 +922,186 @@
                     </div>
                 </div>
 
+                <div v-else-if="currentView === 'shadowteam'" class="space-y-6 h-full flex flex-col">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-xl font-bold flex items-center gap-2 text-slate-800"><i class="fas fa-chess-board text-brand-500"></i> Shadow Team</h3>
+                            <p class="text-slate-500 text-sm">Planificador de Plantilla Futura</p>
+                        </div>
+                        <button @click="clearShadowTeam" class="text-red-500 text-sm font-medium hover:underline">Limpiar Todo</button>
+                    </div>
+
+                    <div class="flex-1 bg-dark-900 rounded-2xl p-6 relative shadow-inner overflow-hidden flex justify-center items-center border border-slate-700">
+                        <div class="soccer-pitch w-full max-w-4xl h-full rounded-xl border-4 border-white/80 relative shadow-2xl">
+                            <div class="center-circle"></div>
+                            <div class="half-line"></div>
+                            <div class="penalty-area penalty-area-top"></div>
+                            <div class="penalty-area penalty-area-bottom"></div>
+
+                            <div v-for="(slot, index) in shadowTeam" :key="slot.id" 
+                                 class="player-token flex flex-col items-center cursor-pointer group"
+                                 :style="{ top: slot.top, left: slot.left }"
+                                 @click="openShadowPicker(index)">
+                                
+                                <div v-if="!slot.player" class="w-12 h-12 rounded-full bg-white/20 border-2 border-dashed border-white/50 flex items-center justify-center text-white hover:bg-white/40 transition-colors">
+                                    <i class="fas fa-plus"></i>
+                                </div>
+                                <div v-if="!slot.player" class="mt-1 bg-black/50 text-white text-[10px] px-2 rounded font-bold uppercase backdrop-blur-sm">{{ slot.label }}</div>
+
+                                <div v-else class="relative flex flex-col items-center">
+                                    <div class="w-16 h-16 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-200 relative z-10">
+                                        <img :src="slot.player['URL Imagen']" @error="setDefaultImage" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="mt-[-8px] z-20 bg-white shadow-md rounded px-2 py-1 text-center min-w-[100px]">
+                                        <div class="font-bold text-xs text-slate-900 truncate max-w-[90px]">{{ slot.player.Nombre }}</div>
+                                        <div class="text-[9px] text-slate-500 flex justify-center gap-2">
+                                            <span>{{ slot.player.Edad }}a</span>
+                                            <span :class="slot.player.isGK ? 'text-red-500' : 'text-brand-600'">
+                                                {{ slot.player.isGK ? slot.player.EncajadosPer90 : slot.player.GolesPer90 }} <i class="fas fa-chart-line text-[8px]"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button @click.stop="removeShadowPlayer(index)" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow z-30 hover:scale-110">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="showShadowPicker" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg h-[80vh] flex flex-col overflow-hidden animate-fade-in-up">
+                            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                <h3 class="font-bold text-slate-800">Seleccionar {{ shadowTeam[activeShadowIndex].label }}</h3>
+                                <button @click="showShadowPicker = false" class="text-slate-400 hover:text-red-500"><i class="fas fa-times"></i></button>
+                            </div>
+                            <div class="p-4 border-b border-slate-100">
+                                <input v-model="shadowSearch" type="text" placeholder="Buscar jugador..." class="w-full border border-slate-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-brand-500 outline-none">
+                                <div class="flex gap-2 mt-3">
+                                    <button @click="shadowFilterMode = 'all'" :class="['text-xs px-3 py-1 rounded-full font-medium transition-colors', shadowFilterMode === 'all' ? 'bg-brand-500 text-white' : 'bg-slate-100 text-slate-500']">Todos</button>
+                                    <button @click="shadowFilterMode = 'shortlist'" :class="['text-xs px-3 py-1 rounded-full font-medium transition-colors', shadowFilterMode === 'shortlist' ? 'bg-accent-500 text-white' : 'bg-slate-100 text-slate-500']"><i class="fas fa-star mr-1"></i> Agenda</button>
+                                </div>
+                            </div>
+                            <div class="flex-1 overflow-y-auto p-2 space-y-1">
+                                <div v-for="p in filteredShadowPlayers" :key="p.id" @click="selectShadowPlayer(p)" class="flex items-center gap-3 p-3 rounded-xl hover:bg-brand-50 cursor-pointer border border-transparent hover:border-brand-200 transition-all">
+                                    <img :src="p['URL Imagen']" @error="setDefaultImage" class="w-10 h-10 rounded-full object-cover bg-gray-200">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-bold text-sm text-slate-900 truncate">{{ p.Nombre }}</div>
+                                        <div class="text-xs text-slate-500 truncate">{{ p['Equipo Actual'] }} | {{ p.Posición }}</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="font-bold text-brand-600 text-sm">{{ p.isGK ? p.EncajadosPer90 : p.GolesPer90 }}</div>
+                                        <div class="text-[9px] text-slate-400 uppercase">p90</div>
+                                    </div>
+                                </div>
+                                <div v-if="filteredShadowPlayers.length === 0" class="text-center py-10 text-slate-400 text-sm">
+                                    No se encontraron jugadores.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="currentView === 'globalstats'" class="space-y-6 animate-fade-in-up">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <i class="fas fa-globe text-brand-500"></i> Global Stats Hub
+                                </h3>
+                                <p class="text-slate-500 text-sm">Super-Rankings combinados de todas las ligas importadas.</p>
+                            </div>
+                            
+                            <div class="flex flex-wrap gap-3">
+                                <select v-model="globalFilterLeague" class="border p-2 rounded-lg text-sm bg-slate-50 font-medium text-slate-700 outline-none focus:ring-1 focus:ring-brand-500">
+                                    <option value="">Todas las Ligas</option>
+                                    <option v-for="(v, k) in leagues" :key="k" :value="k">{{ k }}</option>
+                                </select>
+                                <select v-model="globalFilterPos" class="border p-2 rounded-lg text-sm bg-slate-50 font-medium text-slate-700 outline-none focus:ring-1 focus:ring-brand-500">
+                                    <option value="">Todas Posiciones</option>
+                                    <option value="Portero">Porteros</option>
+                                    <option value="Defensa">Defensas</option>
+                                    <option value="Medio">Centrocampistas</option>
+                                    <option value="Delantero">Delanteros</option>
+                                </select>
+                                <select v-model="globalMetric" class="border p-2 rounded-lg text-sm bg-slate-50 font-bold text-brand-700 outline-none focus:ring-1 focus:ring-brand-500">
+                                    <option value="Total Goles">Goles Totales</option>
+                                    <option value="GolesPer90">Goles p/90</option>
+                                    <option value="Minutos Jugados">Minutos</option>
+                                    <option value="Edad">Más Jóvenes</option>
+                                    <option value="TitularPercentage">% Titularidad</option>
+                                </select>
+                                <button @click="globalFilterAge = globalFilterAge === 'U23' ? '' : 'U23'" :class="['px-3 py-2 rounded-lg text-sm font-bold border transition-colors', globalFilterAge === 'U23' ? 'bg-accent-500 text-white border-accent-600' : 'bg-white text-slate-500 border-slate-200']">
+                                    U23
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="globalRankings.length > 0" class="grid grid-cols-3 gap-4 h-48 items-end px-4 md:px-20 mb-8">
+                        <div v-if="globalRankings[1]" @click="openPlayerProfile(globalRankings[1])" class="bg-white rounded-t-xl shadow-lg border-t-4 border-slate-300 h-32 flex flex-col items-center justify-center p-2 relative cursor-pointer hover:bg-slate-50 transition-colors transform hover:-translate-y-1">
+                            <div class="absolute -top-5 w-10 h-10 bg-slate-200 rounded-full border-2 border-white shadow flex items-center justify-center font-bold text-slate-500">2</div>
+                            <img :src="globalRankings[1]['URL Imagen']" @error="setDefaultImage" class="w-12 h-12 rounded-full object-cover mb-2 border border-slate-100">
+                            <div class="font-bold text-xs text-center line-clamp-1 w-full px-2">{{ globalRankings[1].Nombre }}</div>
+                            <div class="text-slate-500 text-xs font-bold">{{ formatGlobalValue(globalRankings[1]) }}</div>
+                        </div>
+                        <div v-if="globalRankings[0]" @click="openPlayerProfile(globalRankings[0])" class="bg-white rounded-t-xl shadow-xl border-t-4 border-yellow-400 h-40 flex flex-col items-center justify-center p-2 relative z-10 cursor-pointer hover:bg-slate-50 transition-colors transform hover:-translate-y-1">
+                            <div class="absolute -top-6 w-14 h-14 bg-yellow-100 rounded-full border-4 border-white shadow-md flex items-center justify-center text-2xl">👑</div>
+                            <img :src="globalRankings[0]['URL Imagen']" @error="setDefaultImage" class="w-16 h-16 rounded-full object-cover mb-2 border-2 border-yellow-200">
+                            <div class="font-bold text-sm text-center line-clamp-1 w-full px-2">{{ globalRankings[0].Nombre }}</div>
+                            <div class="text-brand-600 text-lg font-bold">{{ formatGlobalValue(globalRankings[0]) }}</div>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-tight">{{ globalRankings[0].leagueName }}</div>
+                        </div>
+                        <div v-if="globalRankings[2]" @click="openPlayerProfile(globalRankings[2])" class="bg-white rounded-t-xl shadow-lg border-t-4 border-orange-300 h-28 flex flex-col items-center justify-center p-2 relative cursor-pointer hover:bg-slate-50 transition-colors transform hover:-translate-y-1">
+                            <div class="absolute -top-5 w-10 h-10 bg-orange-100 rounded-full border-2 border-white shadow flex items-center justify-center font-bold text-orange-700">3</div>
+                            <img :src="globalRankings[2]['URL Imagen']" @error="setDefaultImage" class="w-12 h-12 rounded-full object-cover mb-2 border border-slate-100">
+                            <div class="font-bold text-xs text-center line-clamp-1 w-full px-2">{{ globalRankings[2].Nombre }}</div>
+                            <div class="text-slate-500 text-xs font-bold">{{ formatGlobalValue(globalRankings[2]) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 text-slate-600 font-bold text-xs uppercase">
+                                    <tr>
+                                        <th class="p-3 w-10 text-center">#</th>
+                                        <th class="p-3">Jugador</th>
+                                        <th class="p-3 hidden md:table-cell">Liga</th>
+                                        <th class="p-3 hidden md:table-cell">Equipo</th>
+                                        <th class="p-3 text-center">Edad</th>
+                                        <th class="p-3 text-right font-bold text-brand-700">{{ globalMetric }}</th>
+                                        <th class="p-3 w-10"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-50">
+                                    <tr v-for="(p, i) in globalRankings" :key="p.id" @click="openPlayerProfile(p)" class="hover:bg-slate-50 cursor-pointer transition-colors">
+                                        <td class="p-3 text-center font-bold text-slate-400">{{ i + 1 }}</td>
+                                        <td class="p-3 flex items-center gap-3">
+                                            <img :src="p['URL Imagen']" @error="setDefaultImage" class="w-8 h-8 rounded-full object-cover bg-slate-100">
+                                            <div>
+                                                <div class="font-bold text-slate-900">{{ p.Nombre }}</div>
+                                                <div class="text-xs text-slate-500">{{ p.Posición }}</div>
+                                            </div>
+                                        </td>
+                                        <td class="p-3 hidden md:table-cell text-xs">
+                                            <span class="bg-slate-100 px-2 py-1 rounded text-slate-600 border border-slate-200">{{ p.leagueName }}</span>
+                                        </td>
+                                        <td class="p-3 hidden md:table-cell text-slate-600">{{ p['Equipo Actual'] }}</td>
+                                        <td class="p-3 text-center text-slate-600">{{ p.Edad }}</td>
+                                        <td class="p-3 text-right font-bold text-lg text-brand-600">{{ formatGlobalValue(p) }}</td>
+                                        <td class="p-3 text-right text-slate-300"><i class="fas fa-chevron-right"></i></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-if="globalRankings.length === 0" class="p-10 text-center text-slate-400">
+                            <i class="fas fa-search text-2xl mb-2"></i>
+                            <p>No hay jugadores que coincidan con estos filtros.</p>
+                        </div>
+                    </div>
+                </div>
+
             </transition>
         </div>
     </main>
@@ -889,7 +1118,7 @@
                 allPlayers: [],
                 allStandings: {}, 
                 leagues: {}, 
-                leagueMaxMatchdays: {}, // CACHE FOR PERFORMANCE
+                leagueMaxMatchdays: {}, 
                 searchQuery: '',
                 clubSearch: '',
                 selectedPlayer: null,
@@ -898,10 +1127,17 @@
                 matchAway: '',
                 comparisonList: [],
                 shortlist: [], 
+                
+                // Global Stats State (NEW)
+                globalMetric: 'Total Goles',
+                globalFilterPos: '',
+                globalFilterLeague: '',
+                globalFilterAge: '',
+                
                 headers: [],
                 filters: [{ column: '', operator: 'contains', value: '', value2: '' }],
                 loading: false,
-                playerNotes: '', // NOTES
+                playerNotes: '', 
                 radarChartInstance: null,
                 scatterChartInstance: null, 
                 scatterMetric: 'Minutos Jugados', 
@@ -915,8 +1151,10 @@
                     { id: 'import', label: 'Importar', icon: 'fas fa-cloud-upload-alt' },
                     { id: 'players', label: 'Scouting', icon: 'fas fa-users' },
                     { id: 'clubs', label: 'Clubes', icon: 'fas fa-shield-alt' },
+                    { id: 'shadowteam', label: 'Shadow Team', icon: 'fas fa-chess-board' }, 
                     { id: 'matchday', label: 'Match Day', icon: 'fas fa-handshake' }, 
                     { id: 'compare', label: 'Comparador', icon: 'fas fa-chart-radar' },
+                    { id: 'globalstats', label: 'Global Stats', icon: 'fas fa-globe' }, // NEW
                     { id: 'filter', label: 'Data Lab', icon: 'fas fa-table' },
                     { id: 'leagues', label: 'Competiciones', icon: 'fas fa-trophy' },
                     { id: 'agenda', label: 'Mi Agenda', icon: 'fas fa-star' },
@@ -928,7 +1166,26 @@
                     { key: 'TitularPercentage', label: '% Titular', max: 100 }, 
                     { key: 'Convocados', label: 'Convocatorias', max: 1 }
                 ],
-                numericColumns: ['Edad', 'Total Goles', 'Minutos Jugados', 'Titular', 'Suplente', 'Convocados', 'Jugados', 'Amarillas', 'Rojas', 'Goles_Favor', 'Goles_Contra', 'GolesPer90', 'EncajadosPer90']
+                numericColumns: ['Edad', 'Total Goles', 'Minutos Jugados', 'Titular', 'Suplente', 'Convocados', 'Jugados', 'Amarillas', 'Rojas', 'Goles_Favor', 'Goles_Contra', 'GolesPer90', 'EncajadosPer90'],
+                
+                // SHADOW TEAM STATE
+                shadowTeam: [
+                    { id: 'gk', label: 'POR', player: null, top: '88%', left: '50%' },
+                    { id: 'lb', label: 'LI', player: null, top: '70%', left: '15%' },
+                    { id: 'lcb', label: 'DCT', player: null, top: '75%', left: '35%' },
+                    { id: 'rcb', label: 'DCT', player: null, top: '75%', left: '65%' },
+                    { id: 'rb', label: 'LD', player: null, top: '70%', left: '85%' },
+                    { id: 'cdm', label: 'MCD', player: null, top: '55%', left: '50%' },
+                    { id: 'lcm', label: 'MC', player: null, top: '45%', left: '30%' },
+                    { id: 'rcm', label: 'MC', player: null, top: '45%', left: '70%' },
+                    { id: 'lw', label: 'EI', player: null, top: '25%', left: '20%' },
+                    { id: 'rw', label: 'ED', player: null, top: '25%', left: '80%' },
+                    { id: 'st', label: 'DC', player: null, top: '15%', left: '50%' },
+                ],
+                showShadowPicker: false,
+                activeShadowIndex: null,
+                shadowSearch: '',
+                shadowFilterMode: 'all', 
             }
         },
         computed: {
@@ -939,8 +1196,10 @@
                     profile: 'Ficha Técnica',
                     clubs: 'Directorio de Clubes',
                     clubProfile: 'Análisis de Club',
+                    shadowteam: 'Planificador de Plantilla (Shadow Team)',
                     matchday: 'Match Day: Pre-Partido',
                     compare: 'Análisis Comparativo',
+                    globalstats: 'Global Stats Hub', // NEW
                     filter: 'Explorador Avanzado (Data Lab)',
                     leagues: 'Ligas y Clasificaciones',
                     agenda: 'Mi Agenda Personal'
@@ -954,7 +1213,10 @@
                     profile: 'Detalles individuales, rendimiento y métricas clave.',
                     clubs: 'Visión general de equipos, plantillas y estadísticas agregadas.',
                     clubProfile: 'Profundiza en la estructura y rendimiento del equipo.',
+                    shadowteam: 'Diseña tu equipo ideal arrastrando jugadores al campo.',
+                    matchday: 'Genera un informe comparativo entre dos equipos rivales.',
                     compare: 'Comparación visual híbrida (Porteros vs Jugadores).',
+                    globalstats: 'Rankings agregados de todas las ligas importadas.', // NEW
                     filter: 'Visualiza la distribución de talento y filtra perfiles.',
                     leagues: 'Tablas de clasificación y clubes por competición.',
                     agenda: 'Gestiona tu lista de jugadores guardados.'
@@ -1050,6 +1312,53 @@
                     res[leagueName].clubs.push(club);
                 });
                 return res;
+            },
+            // SHADOW TEAM FILTERED LIST
+            filteredShadowPlayers() {
+                const list = this.shadowFilterMode === 'shortlist' ? this.shortlist : this.allPlayers;
+                if (!this.shadowSearch) return list.slice(0, 50); 
+                const q = this.shadowSearch.toLowerCase();
+                return list.filter(p => p.Nombre.toLowerCase().includes(q) || p.Posición.toLowerCase().includes(q)).slice(0, 50);
+            },
+            // NEW: GLOBAL RANKINGS
+            globalRankings() {
+                let list = this.allPlayers;
+                // 1. League Filter
+                if(this.globalFilterLeague) {
+                    list = list.filter(p => p.leagueName === this.globalFilterLeague);
+                }
+                // 2. Position Filter
+                if(this.globalFilterPos) {
+                    list = list.filter(p => p.Posición && p.Posición.includes(this.globalFilterPos));
+                }
+                // 3. Age Filter
+                if(this.globalFilterAge === 'U23') list = list.filter(p => p.Edad < 23);
+                
+                // 4. Sort
+                return list.sort((a,b) => {
+                    let valA = 0;
+                    let valB = 0;
+                    
+                    if (this.globalMetric === 'TitularPercentage') {
+                         valA = this.getTitularPercentage(a);
+                         valB = this.getTitularPercentage(b);
+                    } else if (this.globalMetric === 'Total Goles') {
+                         // Sort GKs by goals conceded? Usually high goals is bad for GK.
+                         // But 'Total Goles' implies scoring. If looking for best scorers, stick to goals.
+                         // If looking for GK performance, switch metric.
+                         valA = a.isGK ? a['Goles_Contra'] : a['Goles_Favor'];
+                         valB = b.isGK ? b['Goles_Contra'] : b['Goles_Favor'];
+                    } else if (this.globalMetric === 'Edad') {
+                        // For Age, usually we want youngest first
+                        valA = a.Edad; 
+                        valB = b.Edad;
+                        return valA - valB; // Ascending sort for age
+                    } else {
+                        valA = a[this.globalMetric] || 0;
+                        valB = b[this.globalMetric] || 0;
+                    }
+                    return valB - valA; // Descending for everything else
+                }).slice(0, 100);
             }
         },
         watch: {
@@ -1060,11 +1369,8 @@
             },
             allPlayers() { this.calculateMaxStats(); },
             shortlist: { deep: true, handler(newVal) { localStorage.setItem('rclpro_shortlist', JSON.stringify(newVal)); }},
-            filteredTablePlayers() {
-                if (this.currentView === 'filter') {
-                    this.triggerScatterUpdate();
-                }
-            }
+            shadowTeam: { deep: true, handler(newVal) { localStorage.setItem('rclpro_shadowteam', JSON.stringify(newVal)); } },
+            filteredTablePlayers() { if (this.currentView === 'filter') { this.triggerScatterUpdate(); } }
         },
         methods: {
             isNumericColumn(colName) { 
@@ -1094,9 +1400,6 @@
                     try {
                         const data = new Uint8Array(e.target.result);
                         const workbook = XLSX.read(data, { type: 'array' });
-                        
-                        const leagueMaxes = {};
-
                         workbook.SheetNames.forEach(sheetName => {
                             const worksheet = workbook.Sheets[sheetName];
                             const jsonData = XLSX.utils.sheet_to_json(worksheet);
@@ -1141,6 +1444,9 @@
                                 this.headers.push('GolesPer90', 'EncajadosPer90');
                             }
                             
+                            // Check if this league is already loaded to avoid duplicates? 
+                            // For simplicity, just appending. User should reload to clear.
+                            if(!this.leagues[sheetName]) this.leagues[sheetName] = true; // Mark league present
                             this.allPlayers = [...this.allPlayers, ...cleanData];
                         });
                         setTimeout(() => { this.loading = false; }, 800); 
@@ -1183,7 +1489,7 @@
                 if (file) this.appLogo = URL.createObjectURL(file);
             },
             openPlayerProfile(player) { 
-                this.playerNotes = ''; // Reset notes on open
+                this.playerNotes = ''; 
                 this.selectedPlayer = player; 
                 this.currentView = 'profile'; 
             },
@@ -1226,6 +1532,13 @@
                 const maxMatchdays = this.leagueMaxMatchdays[player.leagueName] || 1; 
                 return parseFloat(((player.Titular / maxMatchdays) * 100).toFixed(1));
             },
+            
+            formatGlobalValue(player) {
+                if (this.globalMetric === 'TitularPercentage') return this.getTitularPercentage(player) + '%';
+                if (this.globalMetric === 'Edad') return player.Edad + ' años';
+                if (this.globalMetric === 'Total Goles') return player.isGK ? player['Goles_Contra'] + ' (Enc)' : player['Goles_Favor'];
+                return player[this.globalMetric];
+            },
 
             isShortlisted(player) {
                 return this.shortlist.some(p => p.id === player.id); 
@@ -1261,39 +1574,40 @@
                 XLSX.writeFile(wb, "RCLPro_Agenda.xlsx");
             },
 
+            // --- SHADOW TEAM LOGIC ---
+            openShadowPicker(index) {
+                this.activeShadowIndex = index;
+                this.shadowSearch = ''; 
+                this.showShadowPicker = true;
+            },
+            selectShadowPlayer(player) {
+                this.shadowTeam[this.activeShadowIndex].player = player;
+                this.showShadowPicker = false;
+            },
+            removeShadowPlayer(index) {
+                this.shadowTeam[index].player = null;
+            },
+            clearShadowTeam() {
+                if(confirm("¿Borrar todo el equipo sombra?")) {
+                    this.shadowTeam.forEach(slot => slot.player = null);
+                }
+            },
+
             // --- REPORT GENERATOR ---
             generateReport() {
                 const element = document.getElementById('player-report-card');
-                
-                // Add temporary styling for capture
+                const btn = document.querySelector('.no-capture'); 
                 element.classList.add('p-8');
-                
                 html2canvas(element, {
-                    scale: 2, // High resolution
+                    scale: 2, 
                     useCORS: true,
-                    allowTaint: true,
-                    ignoreElements: (node) => node.classList.contains('no-capture'),
-                    onclone: (clonedDoc) => {
-                        const images = clonedDoc.getElementsByTagName('img');
-                        // Use a public CORS proxy to allow fetching external images
-                        for (let img of images) {
-                            if (img.src.startsWith('http')) {
-                                img.crossOrigin = "Anonymous";
-                                img.src = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(img.src);
-                            }
-                        }
-                    }
+                    ignoreElements: (node) => node.classList.contains('no-capture')
                 }).then(canvas => {
                     const link = document.createElement('a');
                     link.download = `Informe_${this.selectedPlayer.Nombre.replace(/\s+/g, '_')}.png`;
                     link.href = canvas.toDataURL();
                     link.click();
-                    
-                    element.classList.remove('p-8'); // Reset style
-                }).catch(err => {
-                    console.error("Error generating report", err);
-                    alert("Error al generar imagen. Puede ser bloqueo de seguridad del navegador.");
-                    element.classList.remove('p-8');
+                    element.classList.remove('p-8'); 
                 });
             },
 
@@ -1456,12 +1770,23 @@
                     console.error("Error loading shortlist", e);
                 }
             }
+            // Load saved shadow team
+            const savedShadowTeam = localStorage.getItem('rclpro_shadowteam');
+            if (savedShadowTeam) {
+                try {
+                    // We need to keep the structure (positions) but update player data
+                    const loaded = JSON.parse(savedShadowTeam);
+                    this.shadowTeam = this.shadowTeam.map((slot, idx) => ({
+                        ...slot,
+                        player: loaded[idx] ? loaded[idx].player : null
+                    }));
+                } catch(e) {
+                    console.error("Error loading shadow team", e);
+                }
+            }
             this.calculateMaxStats();
         }
     }).mount('#app');
 </script>
 </body>
 </html>
-</body>
-</html>
-
