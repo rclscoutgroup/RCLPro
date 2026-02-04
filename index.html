@@ -9,6 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;500;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -23,9 +24,10 @@
                     },
                     colors: {
                         brand: { 50: '#f0f9ff', 100: '#e0f2fe', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' },
-                        accent: { 400: '#fbbf24', 500: '#f59e0b' },
+                        accent: { 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
                         dark: { 800: '#1e293b', 900: '#0f172a' },
-                        danger: { 500: '#ef4444', 50: '#fef2f2' }
+                        danger: { 500: '#ef4444', 50: '#fef2f2' },
+                        success: { 500: '#10b981', 50: '#ecfdf5' }
                     }
                 }
             }
@@ -41,6 +43,15 @@
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .card-hover:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
+        
+        /* Table Styles */
+        .standings-row:hover { background-color: #f0f9ff; cursor: pointer; transform: scale(1.005); transition: all 0.1s; }
+        .pos-badge { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 0.8rem; }
+        .pos-1 { background-color: #fbbf24; color: #78350f; } /* Gold */
+        .pos-2 { background-color: #94a3b8; color: #fff; } /* Silver */
+        .pos-3 { background-color: #b45309; color: #fff; } /* Bronze */
+        .pos-up { background-color: #d1fae5; color: #065f46; } /* Promotion zone */
+        .pos-down { background-color: #fee2e2; color: #991b1b; } /* Relegation */
     </style>
 </head>
 <body>
@@ -96,8 +107,8 @@
                 </div>
                 <div class="h-10 w-px bg-slate-200"></div>
                 <div class="text-right">
-                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Clubes</div>
-                    <div class="font-display font-bold text-slate-700">{{ uniqueClubs.length }} <span class="text-slate-400 text-sm font-normal">equipos</span></div>
+                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Agenda</div>
+                    <div class="font-display font-bold text-accent-500">{{ shortlist.length }} <span class="text-slate-400 text-sm font-normal">guardados</span></div>
                 </div>
             </div>
         </header>
@@ -105,28 +116,49 @@
         <div class="flex-1 overflow-y-auto p-6 md:p-8 relative scroll-smooth">
             <transition name="fade" mode="out-in">
                 
-                <div v-if="currentView === 'import'" class="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="p-1 bg-gradient-to-r from-brand-500 to-accent-400"></div>
-                        <div class="p-10 text-center">
-                            <div class="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-6 text-brand-500 text-3xl">
-                                <i class="fas fa-file-excel"></i>
-                            </div>
-                            <h3 class="text-2xl font-display font-bold text-slate-900 mb-2">Importar Base de Datos</h3>
-                            <p class="text-slate-500 mb-8 max-w-lg mx-auto">Sube tu archivo Excel (.xlsx). El sistema separará automáticamente los goles a favor de los goles encajados (porteros).</p>
-                            
-                            <label class="block w-full max-w-xl mx-auto border-2 border-dashed border-slate-300 rounded-xl p-10 cursor-pointer hover:border-brand-500 hover:bg-brand-50 transition-all group">
-                                <input type="file" class="hidden" accept=".xlsx, .xls" @change="handleFileUpload">
-                                <div class="flex flex-col items-center gap-3">
-                                    <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 group-hover:text-brand-500 transition-colors"></i>
-                                    <span class="text-slate-600 font-medium group-hover:text-brand-700">Click para seleccionar archivo Excel</span>
+                <div v-if="currentView === 'import'" class="max-w-5xl mx-auto space-y-8 animate-fade-in-up">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                            <div class="p-1 bg-gradient-to-r from-brand-500 to-brand-400"></div>
+                            <div class="p-8 text-center flex-1">
+                                <div class="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-4 text-brand-500 text-2xl">
+                                    <i class="fas fa-users"></i>
                                 </div>
-                            </label>
-                            
-                            <div v-if="loading" class="mt-6 flex items-center justify-center gap-3 text-brand-600 font-medium">
-                                <i class="fas fa-circle-notch fa-spin"></i> Procesando datos...
+                                <h3 class="text-xl font-display font-bold text-slate-900 mb-2">1. Plantillas (Jugadores)</h3>
+                                <p class="text-slate-500 text-sm mb-6">Sube el Excel con los datos de los jugadores, goles, minutos, etc.</p>
+                                
+                                <label class="block w-full border-2 border-dashed border-slate-300 rounded-xl p-6 cursor-pointer hover:border-brand-500 hover:bg-brand-50 transition-all group">
+                                    <input type="file" class="hidden" accept=".xlsx, .xls" @change="handleFileUpload">
+                                    <div class="flex flex-col items-center gap-2">
+                                        <i class="fas fa-cloud-upload-alt text-2xl text-slate-300 group-hover:text-brand-500 transition-colors"></i>
+                                        <span class="text-slate-600 font-medium text-sm">Seleccionar Excel Jugadores</span>
+                                    </div>
+                                </label>
                             </div>
                         </div>
+
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                            <div class="p-1 bg-gradient-to-r from-accent-500 to-accent-400"></div>
+                            <div class="p-8 text-center flex-1">
+                                <div class="w-16 h-16 bg-accent-50 rounded-full flex items-center justify-center mx-auto mb-4 text-accent-500 text-2xl">
+                                    <i class="fas fa-list-ol"></i>
+                                </div>
+                                <h3 class="text-xl font-display font-bold text-slate-900 mb-2">2. Clasificación (Ligas)</h3>
+                                <p class="text-slate-500 text-sm mb-6">Sube el Excel con la tabla de puntos, posición, PG, PP, URL Equipo, etc.</p>
+                                
+                                <label class="block w-full border-2 border-dashed border-slate-300 rounded-xl p-6 cursor-pointer hover:border-accent-500 hover:bg-accent-50 transition-all group">
+                                    <input type="file" class="hidden" accept=".xlsx, .xls" @change="handleStandingsUpload">
+                                    <div class="flex flex-col items-center gap-2">
+                                        <i class="fas fa-file-excel text-2xl text-slate-300 group-hover:text-accent-500 transition-colors"></i>
+                                        <span class="text-slate-600 font-medium text-sm">Seleccionar Excel Clasificación</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="loading" class="text-center py-4 text-brand-600 font-medium animate-pulse">
+                        <i class="fas fa-circle-notch fa-spin mr-2"></i> Procesando datos...
                     </div>
 
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-6">
@@ -156,6 +188,11 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         <div v-for="player in paginatedPlayers" :key="player.id" @click="openPlayerProfile(player)" 
                              class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer card-hover group relative">
+                            
+                            <button @click.stop="toggleShortlist(player)" class="absolute top-3 right-3 z-20 text-lg transition-transform hover:scale-110">
+                                <i :class="['fas fa-star', isShortlisted(player) ? 'text-accent-400 drop-shadow-sm' : 'text-slate-300 hover:text-accent-400']"></i>
+                            </button>
+
                             <div class="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded uppercase font-bold tracking-wider">
                                 {{ player.leagueName }}
                             </div>
@@ -197,78 +234,323 @@
                 </div>
 
                 <div v-else-if="currentView === 'profile'" class="max-w-6xl mx-auto animate-fade-in-up">
-                    <button @click="currentView = 'players'" class="mb-6 flex items-center gap-2 text-slate-500 hover:text-brand-600 transition-colors font-medium">
-                        <i class="fas fa-arrow-left"></i> Volver al listado
-                    </button>
+                    <div class="flex justify-between items-center mb-6 no-capture">
+                        <button @click="currentView = 'players'" class="flex items-center gap-2 text-slate-500 hover:text-brand-600 transition-colors font-medium">
+                            <i class="fas fa-arrow-left"></i> Volver al listado
+                        </button>
+                        
+                        <button @click="generateReport" class="bg-dark-900 hover:bg-black text-white px-5 py-2.5 rounded-lg font-bold shadow-lg flex items-center gap-2 transition-all">
+                            <i class="fas fa-camera"></i> Descargar Ficha Técnica
+                        </button>
+                    </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        <div class="lg:col-span-4 space-y-6">
-                            <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden relative">
-                                <div class="h-32 bg-gradient-to-br from-dark-800 to-dark-900"></div>
-                                <div class="px-8 pb-8 text-center relative">
-                                    <div class="w-32 h-32 mx-auto -mt-16 rounded-full border-[6px] border-white shadow-xl overflow-hidden bg-white">
-                                        <img :src="selectedPlayer['URL Imagen']" @error="setDefaultImage" class="w-full h-full object-cover">
-                                    </div>
-                                    <h2 class="mt-4 text-2xl font-display font-bold text-slate-900">{{ selectedPlayer.Nombre }}</h2>
-                                    <div class="inline-flex items-center gap-2 mt-2 px-3 py-1 bg-slate-100 rounded-full text-sm font-medium text-slate-600">
-                                        <span class="w-2 h-2 rounded-full bg-brand-500"></span>
-                                        {{ selectedPlayer.Posición }}
-                                    </div>
-                                    <div class="mt-6 flex items-center justify-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                        <img :src="selectedPlayer['URL Escudo']" class="w-12 h-12 object-contain">
-                                        <div class="text-left">
-                                            <div class="text-xs text-slate-400 uppercase font-bold">Club Actual</div>
-                                            <div class="font-bold text-slate-800 leading-tight">{{ selectedPlayer['Equipo Actual'] }}</div>
+                    <div id="player-report-card" class="bg-slate-50 p-4 lg:p-8 rounded-3xl relative">
+                        
+                        <div class="flex items-center gap-3 mb-6 opacity-80">
+                            <div class="w-8 h-8 rounded bg-brand-600 flex items-center justify-center text-white font-bold text-xs">R</div>
+                            <span class="text-sm font-bold text-slate-400 uppercase tracking-widest">RCLPro Scouting Report</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            <div class="lg:col-span-4 space-y-6">
+                                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden relative">
+                                    <div class="h-32 bg-gradient-to-br from-dark-800 to-dark-900"></div>
+                                    <div class="px-8 pb-8 text-center relative">
+                                        <div class="w-32 h-32 mx-auto -mt-16 rounded-full border-[6px] border-white shadow-xl overflow-hidden bg-white">
+                                            <img id="report-player-img" :src="selectedPlayer['URL Imagen']" @error="setDefaultImage" class="w-full h-full object-cover">
+                                        </div>
+                                        
+                                        <div class="mt-4 flex items-center justify-center gap-2">
+                                            <h2 class="text-2xl font-display font-bold text-slate-900">{{ selectedPlayer.Nombre }}</h2>
+                                            <button @click="toggleShortlist(selectedPlayer)" class="text-2xl transition-transform hover:scale-110 focus:outline-none no-capture">
+                                                <i :class="['fas fa-star', isShortlisted(selectedPlayer) ? 'text-accent-400' : 'text-slate-200 hover:text-accent-400']"></i>
+                                            </button>
+                                        </div>
+
+                                        <div class="inline-flex items-center gap-2 mt-2 px-3 py-1 bg-slate-100 rounded-full text-sm font-medium text-slate-600">
+                                            <span class="w-2 h-2 rounded-full bg-brand-500"></span>
+                                            {{ selectedPlayer.Posición }}
+                                        </div>
+                                        <div class="mt-6 flex items-center justify-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                            <img id="report-club-img" :src="selectedPlayer['URL Escudo']" class="w-12 h-12 object-contain">
+                                            <div class="text-left">
+                                                <div class="text-xs text-slate-400 uppercase font-bold">Club Actual</div>
+                                                <div class="font-bold text-slate-800 leading-tight">{{ selectedPlayer['Equipo Actual'] }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-6 space-y-3 no-capture">
+                                            <a :href="selectedPlayer['URL Ficha']" target="_blank" class="flex items-center justify-center w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-brand-500/30">
+                                                Ver Ficha Técnica <i class="fas fa-external-link-alt ml-2 text-xs"></i>
+                                            </a>
+                                            <button @click="addToCompare(selectedPlayer)" class="flex items-center justify-center w-full py-3 bg-white border-2 border-brand-100 text-brand-600 hover:border-brand-500 hover:bg-brand-50 rounded-xl font-bold transition-all">
+                                                <i class="fas fa-radar ml-2 mr-2"></i> Añadir a Comparador
+                                            </button>
                                         </div>
                                     </div>
-                                    <div class="mt-6 space-y-3">
-                                        <a :href="selectedPlayer['URL Ficha']" target="_blank" class="flex items-center justify-center w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-brand-500/30">
-                                            Ver Ficha Técnica <i class="fas fa-external-link-alt ml-2 text-xs"></i>
-                                        </a>
-                                        <button @click="addToCompare(selectedPlayer)" class="flex items-center justify-center w-full py-3 bg-white border-2 border-brand-100 text-brand-600 hover:border-brand-500 hover:bg-brand-50 rounded-xl font-bold transition-all">
-                                            <i class="fas fa-radar ml-2 mr-2"></i> Añadir a Comparador
-                                        </button>
+                                </div>
+                            </div>
+                            <div class="lg:col-span-8 space-y-6">
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
+                                        <div :class="['text-3xl font-display font-bold', selectedPlayer.isGK ? 'text-danger-500' : 'text-brand-500']">
+                                            {{ selectedPlayer.isGK ? selectedPlayer['Goles_Contra'] : selectedPlayer['Goles_Favor'] }}
+                                        </div>
+                                        <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">
+                                            {{ selectedPlayer.isGK ? 'Goles Encajados' : 'Goles a Favor' }}
+                                        </div>
+                                    </div>
+                                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
+                                        <div class="text-3xl font-display font-bold text-slate-800">{{ selectedPlayer['Minutos Jugados'] }}</div>
+                                        <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">Minutos</div>
+                                    </div>
+                                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
+                                        <div class="text-3xl font-display font-bold text-slate-800">{{ selectedPlayer['Titular'] }}</div>
+                                        <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">Titular</div>
+                                    </div>
+                                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
+                                        <div class="text-3xl font-display font-bold text-slate-800">{{ selectedPlayer.Edad }}</div>
+                                        <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">Edad</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-brand-50 border border-brand-100 rounded-2xl p-6 relative overflow-hidden">
+                                    <div class="absolute right-0 top-0 p-4 opacity-5">
+                                        <i class="fas fa-flask text-8xl text-brand-900"></i>
+                                    </div>
+                                    <h3 class="text-lg font-bold text-brand-900 mb-6 flex items-center gap-2 relative z-10">
+                                        <i class="fas fa-flask"></i> Data Lab: Métricas Avanzadas
+                                    </h3>
+                                    <div class="grid grid-cols-3 gap-6 relative z-10">
+                                        <div class="text-center">
+                                            <div :class="['text-3xl font-display font-bold', selectedPlayer.isGK ? 'text-red-500' : 'text-brand-600']">
+                                                {{ selectedPlayer.isGK ? selectedPlayer['EncajadosPer90'] : selectedPlayer['GolesPer90'] }}
+                                            </div>
+                                            <div class="text-xs text-brand-800 uppercase font-bold tracking-wider mt-1">
+                                                {{ selectedPlayer.isGK ? 'Encajados p/90' : 'Goles p/90' }}
+                                            </div>
+                                        </div>
+                                        <div class="text-center border-l border-brand-200">
+                                            <div class="text-3xl font-display font-bold text-brand-600">{{ getTitularPercentage(selectedPlayer) }}%</div>
+                                            <div class="text-xs text-brand-800 uppercase font-bold tracking-wider mt-1">% Titularidad</div>
+                                        </div>
+                                        <div class="text-center border-l border-brand-200">
+                                            <div class="text-3xl font-display font-bold text-brand-600">{{ selectedPlayer['Total Goles'] }}</div>
+                                            <div class="text-xs text-brand-800 uppercase font-bold tracking-wider mt-1">Contrib. Ofensiva</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                                    <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                                        <i class="fas fa-chart-bar text-brand-500"></i> Rendimiento vs Liga
+                                    </h3>
+                                    <div class="space-y-6">
+                                        <div v-for="stat in statMetrics" :key="stat.key">
+                                            <div class="flex justify-between text-sm mb-2">
+                                                <span class="font-medium text-slate-600">{{ stat.label }}</span>
+                                                <span class="font-bold text-slate-900">{{ selectedPlayer[stat.key] || 0 }} <span class="text-slate-400 font-normal text-xs">/ máx {{ stat.max }}</span></span>
+                                            </div>
+                                            <div class="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full relative" :style="{ width: getPercentage(selectedPlayer[stat.key], stat.max) + '%' }">
+                                                    <div class="absolute right-0 top-0 bottom-0 w-px bg-white/50"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                    <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <i class="fas fa-edit text-accent-500"></i> Informe Técnico / Notas
+                                    </h3>
+                                    <textarea v-model="playerNotes" class="w-full h-32 p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none transition-all text-sm leading-relaxed" placeholder="Escribe aquí tu análisis cualitativo del jugador..."></textarea>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="currentView === 'matchday'" class="space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                            <i class="fas fa-handshake text-brand-500"></i> Configurar Partido
+                        </h3>
+                        <div class="flex flex-col md:flex-row gap-6 items-center">
+                            <div class="flex-1 w-full">
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Local</label>
+                                <select v-model="matchHome" class="w-full border border-slate-300 rounded-xl p-3 bg-slate-50 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                                    <option value="">Seleccionar Equipo Local...</option>
+                                    <option v-for="club in uniqueClubs" :key="club.name" :value="club">{{ club.name }}</option>
+                                </select>
+                            </div>
+                            <div class="text-2xl font-display font-bold text-slate-300">VS</div>
+                            <div class="flex-1 w-full">
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Visitante</label>
+                                <select v-model="matchAway" class="w-full border border-slate-300 rounded-xl p-3 bg-slate-50 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                                    <option value="">Seleccionar Equipo Visitante...</option>
+                                    <option v-for="club in uniqueClubs" :key="club.name" :value="club">{{ club.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="matchHome && matchAway" class="animate-fade-in-up space-y-6">
+                        <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+                            <div class="h-2 bg-gradient-to-r from-brand-500 via-slate-200 to-accent-500"></div>
+                            <div class="p-8">
+                                <div class="flex justify-between items-center text-center">
+                                    <div class="w-1/3 flex flex-col items-center">
+                                        <img :src="matchHome.logo" class="w-24 h-24 object-contain mb-3 drop-shadow-md">
+                                        <h2 class="text-xl font-bold leading-tight">{{ matchHome.name }}</h2>
+                                        <div v-if="matchHome.standingData" class="mt-2 inline-block bg-brand-100 text-brand-700 px-3 py-1 rounded-full text-sm font-bold">
+                                            {{ matchHome.standingData.Puntos }} pts ({{ matchHome.standingData.Posición }}º)
+                                        </div>
+                                    </div>
+
+                                    <div class="w-1/3 space-y-4 px-4">
+                                        <div class="grid grid-cols-2 gap-4 text-center text-sm">
+                                            <div v-if="matchHome.standingData">
+                                                <div class="font-bold text-slate-400 text-xs mb-1">RACHA</div>
+                                                <div class="flex justify-center gap-1">
+                                                    <span class="text-green-500 font-bold">{{ matchHome.standingData.PG }}G</span>
+                                                    <span class="text-yellow-500 font-bold">{{ matchHome.standingData.PE }}E</span>
+                                                    <span class="text-red-500 font-bold">{{ matchHome.standingData.PP }}P</span>
+                                                </div>
+                                            </div>
+                                            <div v-if="matchAway.standingData">
+                                                <div class="font-bold text-slate-400 text-xs mb-1">RACHA</div>
+                                                <div class="flex justify-center gap-1">
+                                                    <span class="text-green-500 font-bold">{{ matchAway.standingData.PG }}G</span>
+                                                    <span class="text-yellow-500 font-bold">{{ matchAway.standingData.PE }}E</span>
+                                                    <span class="text-red-500 font-bold">{{ matchAway.standingData.PP }}P</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-slate-50 rounded-xl p-4 space-y-3">
+                                            <div class="flex justify-between text-sm items-center">
+                                                <span class="font-bold">{{ matchHome.stats.avgAge }}</span>
+                                                <span class="text-xs text-slate-400 uppercase">Edad Media</span>
+                                                <span class="font-bold">{{ matchAway.stats.avgAge }}</span>
+                                            </div>
+                                            <div class="w-full bg-slate-200 h-1 rounded-full relative">
+                                                <div class="absolute left-1/2 h-full w-px bg-slate-400"></div>
+                                            </div>
+                                            <div class="flex justify-between text-sm items-center">
+                                                <span class="font-bold text-brand-600">{{ matchHome.stats.totalGoalsFor }}</span>
+                                                <span class="text-xs text-slate-400 uppercase">Goles Favor</span>
+                                                <span class="font-bold text-accent-600">{{ matchAway.stats.totalGoalsFor }}</span>
+                                            </div>
+                                            <div class="flex justify-between text-sm items-center">
+                                                <span class="font-bold text-red-500">{{ matchHome.stats.totalGoalsAgainst }}</span>
+                                                <span class="text-xs text-slate-400 uppercase">Goles Contra</span>
+                                                <span class="font-bold text-red-500">{{ matchAway.stats.totalGoalsAgainst }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="w-1/3 flex flex-col items-center">
+                                        <img :src="matchAway.logo" class="w-24 h-24 object-contain mb-3 drop-shadow-md">
+                                        <h2 class="text-xl font-bold leading-tight">{{ matchAway.name }}</h2>
+                                        <div v-if="matchAway.standingData" class="mt-2 inline-block bg-accent-100 text-accent-700 px-3 py-1 rounded-full text-sm font-bold">
+                                            {{ matchAway.standingData.Puntos }} pts ({{ matchAway.standingData.Posición }}º)
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="lg:col-span-8 space-y-6">
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
-                                    <div :class="['text-3xl font-display font-bold', selectedPlayer.isGK ? 'text-danger-500' : 'text-brand-500']">
-                                        {{ selectedPlayer.isGK ? selectedPlayer['Goles_Contra'] : selectedPlayer['Goles_Favor'] }}
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                                <h4 class="font-bold text-slate-700 mb-4 border-b border-slate-100 pb-2">Goleadores {{ matchHome.name }}</h4>
+                                <div class="space-y-3">
+                                    <div v-for="p in getTopScorers(matchHome.name)" :key="p.id" @click="openPlayerProfile(p)" class="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-2 rounded-lg transition-colors">
+                                        <img :src="p['URL Imagen']" @error="setDefaultImage" class="w-10 h-10 rounded-full object-cover">
+                                        <div class="flex-1">
+                                            <div class="font-bold text-sm">{{ p.Nombre }}</div>
+                                            <div class="text-xs text-slate-500">{{ p.Posición }}</div>
+                                        </div>
+                                        <div class="font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded">{{ p.Goles_Favor }}</div>
                                     </div>
-                                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">
-                                        {{ selectedPlayer.isGK ? 'Goles Encajados' : 'Goles a Favor' }}
-                                    </div>
-                                </div>
-                                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
-                                    <div class="text-3xl font-display font-bold text-slate-800">{{ selectedPlayer['Minutos Jugados'] }}</div>
-                                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">Minutos</div>
-                                </div>
-                                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
-                                    <div class="text-3xl font-display font-bold text-slate-800">{{ selectedPlayer['Titular'] }}</div>
-                                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">Titular</div>
-                                </div>
-                                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center">
-                                    <div class="text-3xl font-display font-bold text-slate-800">{{ selectedPlayer.Edad }}</div>
-                                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mt-1">Edad</div>
                                 </div>
                             </div>
-                            <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                                <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                                    <i class="fas fa-chart-bar text-brand-500"></i> Rendimiento vs Liga
-                                </h3>
-                                <div class="space-y-6">
-                                    <div v-for="stat in statMetrics" :key="stat.key">
-                                        <div class="flex justify-between text-sm mb-2">
-                                            <span class="font-medium text-slate-600">{{ stat.label }}</span>
-                                            <span class="font-bold text-slate-900">{{ selectedPlayer[stat.key] || 0 }} <span class="text-slate-400 font-normal text-xs">/ máx {{ stat.max }}</span></span>
+
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                                <h4 class="font-bold text-slate-700 mb-4 border-b border-slate-100 pb-2">Goleadores {{ matchAway.name }}</h4>
+                                <div class="space-y-3">
+                                    <div v-for="p in getTopScorers(matchAway.name)" :key="p.id" @click="openPlayerProfile(p)" class="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-2 rounded-lg transition-colors">
+                                        <img :src="p['URL Imagen']" @error="setDefaultImage" class="w-10 h-10 rounded-full object-cover">
+                                        <div class="flex-1">
+                                            <div class="font-bold text-sm">{{ p.Nombre }}</div>
+                                            <div class="text-xs text-slate-500">{{ p.Posición }}</div>
                                         </div>
-                                        <div class="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                                            <div class="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full relative" :style="{ width: getPercentage(selectedPlayer[stat.key], stat.max) + '%' }">
-                                                <div class="absolute right-0 top-0 bottom-0 w-px bg-white/50"></div>
+                                        <div class="font-bold text-accent-600 bg-accent-50 px-2 py-1 rounded">{{ p.Goles_Favor }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="currentView === 'agenda'" class="space-y-6">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+                         <div>
+                            <h3 class="text-2xl font-display font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fas fa-star text-accent-500"></i> Mi Agenda
+                            </h3>
+                            <p class="text-slate-500 text-sm">Lista de seguimiento persistente (localStorage)</p>
+                         </div>
+                         <button @click="exportShortlist" v-if="shortlist.length > 0" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold flex items-center gap-2 shadow-sm transition-colors">
+                             <i class="fas fa-file-excel"></i> Exportar Agenda
+                         </button>
+                    </div>
+
+                    <div v-if="shortlist.length === 0" class="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                        <i class="far fa-star text-4xl text-slate-300 mb-4"></i>
+                        <p class="text-slate-500 font-medium">Aún no has guardado ningún jugador.</p>
+                        <p class="text-sm text-slate-400">Usa la estrella en las tarjetas o perfiles para añadir.</p>
+                        <button @click="currentView = 'players'" class="mt-4 text-brand-600 font-bold hover:underline">Ir al buscador</button>
+                    </div>
+
+                    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                         <div v-for="player in shortlist" :key="player.id" @click="openPlayerProfile(player)" 
+                             class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer card-hover group relative">
+                            <button @click.stop="toggleShortlist(player)" class="absolute top-3 right-3 z-20 text-lg transition-transform hover:scale-110">
+                                <i class="fas fa-star text-accent-400 drop-shadow-sm"></i>
+                            </button>
+                            <div class="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded uppercase font-bold tracking-wider">
+                                {{ player.leagueName }}
+                            </div>
+                            <div class="h-24 bg-dark-900 relative overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-t from-dark-900 to-transparent opacity-80"></div>
+                                <img :src="player['URL Escudo']" class="absolute right-0 top-0 w-32 h-32 object-contain opacity-10 transform translate-x-8 -translate-y-8 rotate-12">
+                            </div>
+                            <div class="px-5 pb-5 relative">
+                                <div class="w-20 h-20 rounded-full border-4 border-white bg-slate-200 -mt-10 overflow-hidden shadow-md relative z-10 group-hover:scale-105 transition-transform">
+                                    <img :src="player['URL Imagen']" @error="setDefaultImage" class="w-full h-full object-cover">
+                                </div>
+                                <div class="mt-3">
+                                    <h4 class="font-display font-bold text-lg text-slate-900 truncate leading-tight">{{ player.Nombre }}</h4>
+                                    <p class="text-xs font-medium text-brand-600 uppercase tracking-wide mb-1">{{ player['Equipo Actual'] }}</p>
+                                    <div class="flex items-center justify-between text-sm text-slate-500 mt-2">
+                                        <span>{{ player.Posición }}</span>
+                                        <span class="font-semibold text-slate-700">{{ player.Edad }} años</span>
+                                    </div>
+                                    <div class="mt-4 grid grid-cols-3 gap-2 py-3 border-t border-slate-100">
+                                        <div class="text-center">
+                                            <div class="text-[10px] text-slate-400 uppercase">Min</div>
+                                            <div class="font-bold text-slate-800">{{ player['Minutos Jugados'] }}</div>
+                                        </div>
+                                        <div class="text-center border-l border-slate-100">
+                                            <div class="text-[10px] text-slate-400 uppercase">{{ player.isGK ? 'Encajados' : 'Goles' }}</div>
+                                            <div :class="['font-bold', player.isGK ? 'text-danger-500' : 'text-brand-600']">
+                                                {{ player.isGK ? player['Goles_Contra'] : player['Goles_Favor'] }}
                                             </div>
+                                        </div>
+                                        <div class="text-center border-l border-slate-100">
+                                            <div class="text-[10px] text-slate-400 uppercase">Titular</div>
+                                            <div class="font-bold text-slate-800">{{ player.Titular }}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -304,15 +586,24 @@
                     <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
                         <div class="p-8 bg-dark-900 text-white flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
                             <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 20px 20px;"></div>
+                            
                             <div class="w-32 h-32 bg-white rounded-2xl p-4 flex items-center justify-center shadow-2xl relative z-10">
                                 <img :src="selectedClub.logo" class="w-full h-full object-contain">
                             </div>
+                            
                             <div class="text-center md:text-left flex-1 relative z-10">
-                                <h1 class="text-4xl font-display font-bold">{{ selectedClub.name }}</h1>
-                                <p class="text-slate-400 mt-1 flex items-center justify-center md:justify-start gap-2">
+                                <div class="flex flex-col md:flex-row items-center md:items-start gap-4">
+                                    <h1 class="text-4xl font-display font-bold">{{ selectedClub.name }}</h1>
+                                    <div v-if="selectedClub.standingData" class="bg-accent-500 text-white px-4 py-1 rounded-full font-bold shadow-lg animate-bounce">
+                                        #{{ selectedClub.standingData.Posición }} en Liga
+                                    </div>
+                                </div>
+
+                                <p class="text-slate-400 mt-2 flex items-center justify-center md:justify-start gap-2">
                                     <i class="fas fa-layer-group"></i> {{ selectedClub.players[0].leagueName }}
                                 </p>
-                                <div class="flex flex-wrap gap-4 mt-6 justify-center md:justify-start">
+                                
+                                <div class="flex flex-wrap gap-4 mt-6 justify-center md:justify-start items-center">
                                     <div class="bg-white/10 backdrop-blur px-5 py-2 rounded-lg border border-white/10">
                                         <div class="text-xs text-slate-400 uppercase tracking-wider">Edad Media</div>
                                         <div class="font-bold text-xl">{{ selectedClub.stats.avgAge }}</div>
@@ -325,10 +616,12 @@
                                         <div class="text-xs text-red-300 uppercase tracking-wider">Goles en Contra</div>
                                         <div class="font-bold text-xl text-red-400">{{ selectedClub.stats.totalGoalsAgainst }}</div>
                                     </div>
-                                    <div class="bg-white/10 backdrop-blur px-5 py-2 rounded-lg border border-white/10">
-                                        <div class="text-xs text-slate-400 uppercase tracking-wider">Plantilla</div>
-                                        <div class="font-bold text-xl">{{ selectedClub.players.length }}</div>
-                                    </div>
+                                    
+                                    <a v-if="selectedClub.standingData && selectedClub.standingData['URL Equipo']" 
+                                       :href="selectedClub.standingData['URL Equipo']" target="_blank"
+                                       class="bg-accent-500 hover:bg-accent-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition-colors flex items-center gap-2 ml-4">
+                                       <i class="fas fa-globe"></i> Web Oficial
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -401,7 +694,32 @@
                     </div>
                 </div>
 
-                <div v-else-if="currentView === 'filter'" class="space-y-4">
+                <div v-else-if="currentView === 'filter'" class="space-y-6">
+                     
+                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative">
+                         <div class="flex justify-between items-center mb-4">
+                             <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                 <i class="fas fa-chart-scatter text-brand-500"></i> Distribución de Talento
+                             </h3>
+                             <div class="flex items-center gap-3 text-sm">
+                                <span class="text-slate-500">Eje Y:</span>
+                                <select v-model="scatterMetric" @change="renderScatterChart" class="border border-slate-200 rounded px-2 py-1 bg-slate-50 text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500">
+                                    <option value="Minutos Jugados">Minutos</option>
+                                    <option value="Total Goles">Goles (Total)</option>
+                                    <option value="GolesPer90">Goles p/90</option>
+                                    <option value="EncajadosPer90">Encajados p/90</option>
+                                    <option value="TitularPercentage">% Titularidad</option>
+                                </select>
+                             </div>
+                         </div>
+                         <div class="h-80 w-full relative">
+                             <canvas id="scatterChart"></canvas>
+                         </div>
+                         <div class="text-center text-xs text-slate-400 mt-2 italic">
+                             * Haz clic en un punto para ver el perfil. Los puntos se actualizan según los filtros de abajo.
+                         </div>
+                     </div>
+
                      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
                         <div class="flex items-center justify-between mb-2">
                             <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-filter text-brand-500"></i> Filtros Activos</h3>
@@ -448,7 +766,7 @@
                                         <th class="p-4">Posición</th>
                                         <th class="p-4 text-center">Edad</th>
                                         <th class="p-4 text-center">Minutos</th>
-                                        <th class="p-4 text-center">Goles/Enc</th>
+                                        <th class="p-4 text-center">Goles/Enc p90</th>
                                         <th class="p-4 text-center"></th>
                                     </tr>
                                 </thead>
@@ -461,7 +779,7 @@
                                         <td class="p-4 text-center text-slate-600">{{ player['Minutos Jugados'] }}</td>
                                         <td class="p-4 text-center">
                                             <span :class="['font-bold', player.isGK ? 'text-red-500' : 'text-brand-600']">
-                                                {{ player.isGK ? player['Goles_Contra'] : player['Goles_Favor'] }}
+                                                {{ player.isGK ? player['EncajadosPer90'] : player['GolesPer90'] }}
                                             </span>
                                         </td>
                                         <td class="p-4 text-center">
@@ -492,11 +810,63 @@
                             </div>
                         </div>
                         <transition name="fade">
-                            <div v-if="leagueData.expanded" class="p-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                <div v-for="club in leagueData.clubs" :key="club.name" @click="openClubProfile(club)" 
-                                     class="flex flex-col items-center gap-3 p-4 border border-slate-100 rounded-xl hover:border-brand-500 hover:shadow-md cursor-pointer transition-all bg-white group">
-                                    <img :src="club.logo" class="w-12 h-12 object-contain group-hover:scale-110 transition-transform">
-                                    <span class="font-medium text-sm text-center text-slate-700 leading-tight line-clamp-2">{{ club.name }}</span>
+                            <div v-if="leagueData.expanded" class="p-0">
+                                <div v-if="allStandings[leagueName] && allStandings[leagueName].length > 0" class="overflow-x-auto">
+                                    <table class="w-full text-sm text-left">
+                                        <thead class="bg-slate-100 text-slate-600 font-bold text-xs uppercase">
+                                            <tr>
+                                                <th class="p-3 text-center w-12">Pos</th>
+                                                <th class="p-3">Equipo</th>
+                                                <th class="p-3 text-center font-bold text-slate-900">PTS</th>
+                                                <th class="p-3 text-center hidden md:table-cell">PJ</th>
+                                                <th class="p-3 text-center hidden md:table-cell">PG</th>
+                                                <th class="p-3 text-center hidden md:table-cell">PE</th>
+                                                <th class="p-3 text-center hidden md:table-cell">PP</th>
+                                                <th class="p-3 text-center hidden md:table-cell">GF</th>
+                                                <th class="p-3 text-center hidden md:table-cell">GC</th>
+                                                <th class="p-3 text-right"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="team in allStandings[leagueName]" :key="team.Equipo" 
+                                                @click="openClubFromStanding(team.Equipo)"
+                                                class="standings-row border-b border-slate-50 last:border-0">
+                                                
+                                                <td class="p-3 text-center font-bold">
+                                                    <div :class="['pos-badge mx-auto', 
+                                                        team['Posición'] == 1 ? 'pos-1' : 
+                                                        team['Posición'] == 2 ? 'pos-2' : 
+                                                        team['Posición'] == 3 ? 'pos-3' : 
+                                                        team['Posición'] <= 5 ? 'pos-up' : 
+                                                        team['Posición'] >= 16 ? 'pos-down' : 'bg-slate-100 text-slate-500']">
+                                                        {{ team['Posición'] }}
+                                                    </div>
+                                                </td>
+                                                <td class="p-3 font-medium text-slate-900 flex items-center gap-3">
+                                                    <img :src="team['URL Escudo']" class="w-8 h-8 object-contain">
+                                                    {{ team.Equipo }}
+                                                </td>
+                                                <td class="p-3 text-center font-bold text-lg text-brand-600">{{ team.Puntos }}</td>
+                                                <td class="p-3 text-center text-slate-500 hidden md:table-cell">{{ team.PJ }}</td>
+                                                <td class="p-3 text-center text-green-600 hidden md:table-cell">{{ team.PG }}</td>
+                                                <td class="p-3 text-center text-yellow-600 hidden md:table-cell">{{ team.PE }}</td>
+                                                <td class="p-3 text-center text-red-500 hidden md:table-cell">{{ team.PP }}</td>
+                                                <td class="p-3 text-center text-slate-500 hidden md:table-cell">{{ team.GF }}</td>
+                                                <td class="p-3 text-center text-slate-500 hidden md:table-cell">{{ team.GC }}</td>
+                                                <td class="p-3 text-right text-brand-500"><i class="fas fa-chevron-right"></i></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div v-else class="p-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                    <div v-for="club in leagueData.clubs" :key="club.name" @click="openClubProfile(club)" 
+                                         class="flex flex-col items-center gap-3 p-4 border border-slate-100 rounded-xl hover:border-brand-500 hover:shadow-md cursor-pointer transition-all bg-white group">
+                                        <img :src="club.logo" class="w-12 h-12 object-contain group-hover:scale-110 transition-transform">
+                                        <span class="font-medium text-sm text-center text-slate-700 leading-tight line-clamp-2">{{ club.name }}</span>
+                                    </div>
+                                    <div class="col-span-full text-center text-slate-400 text-sm mt-4 italic">
+                                        * Sube un archivo de clasificación para ver la tabla detallada.
+                                    </div>
                                 </div>
                             </div>
                         </transition>
@@ -517,16 +887,25 @@
                 currentView: 'import',
                 appLogo: null,
                 allPlayers: [],
+                allStandings: {}, 
                 leagues: {}, 
+                leagueMaxMatchdays: {}, // CACHE FOR PERFORMANCE
                 searchQuery: '',
                 clubSearch: '',
                 selectedPlayer: null,
                 selectedClub: null,
+                matchHome: '',
+                matchAway: '',
                 comparisonList: [],
+                shortlist: [], 
                 headers: [],
                 filters: [{ column: '', operator: 'contains', value: '', value2: '' }],
                 loading: false,
+                playerNotes: '', // NOTES
                 radarChartInstance: null,
+                scatterChartInstance: null, 
+                scatterMetric: 'Minutos Jugados', 
+                scatterDebounce: null, 
                 chartColors: [
                     { border: '#0ea5e9', bg: 'rgba(14, 165, 233, 0.2)' },
                     { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' },
@@ -536,19 +915,20 @@
                     { id: 'import', label: 'Importar', icon: 'fas fa-cloud-upload-alt' },
                     { id: 'players', label: 'Scouting', icon: 'fas fa-users' },
                     { id: 'clubs', label: 'Clubes', icon: 'fas fa-shield-alt' },
+                    { id: 'matchday', label: 'Match Day', icon: 'fas fa-handshake' }, 
                     { id: 'compare', label: 'Comparador', icon: 'fas fa-chart-radar' },
                     { id: 'filter', label: 'Data Lab', icon: 'fas fa-table' },
                     { id: 'leagues', label: 'Competiciones', icon: 'fas fa-trophy' },
+                    { id: 'agenda', label: 'Mi Agenda', icon: 'fas fa-star' },
                 ],
-                // We keep keys for mapping, but handle 'Total Goles' dynamically in logic
                 statMetrics: [
-                    { key: 'Goles_Favor', label: 'Goles', max: 1 },
-                    { key: 'Goles_Contra', label: 'Encajados', max: 1 }, // Added for calculation
+                    { key: 'GolesPer90', label: 'Goles/Enc p90', max: 1 }, 
+                    { key: 'EncajadosPer90', label: 'Encajados p90', max: 1 }, 
                     { key: 'Minutos Jugados', label: 'Minutos', max: 1 },
-                    { key: 'Titular', label: 'Titularidades', max: 1 },
+                    { key: 'TitularPercentage', label: '% Titular', max: 100 }, 
                     { key: 'Convocados', label: 'Convocatorias', max: 1 }
                 ],
-                numericColumns: ['Edad', 'Total Goles', 'Minutos Jugados', 'Titular', 'Suplente', 'Convocados', 'Jugados', 'Amarillas', 'Rojas', 'Goles_Favor', 'Goles_Contra']
+                numericColumns: ['Edad', 'Total Goles', 'Minutos Jugados', 'Titular', 'Suplente', 'Convocados', 'Jugados', 'Amarillas', 'Rojas', 'Goles_Favor', 'Goles_Contra', 'GolesPer90', 'EncajadosPer90']
             }
         },
         computed: {
@@ -559,9 +939,11 @@
                     profile: 'Ficha Técnica',
                     clubs: 'Directorio de Clubes',
                     clubProfile: 'Análisis de Club',
+                    matchday: 'Match Day: Pre-Partido',
                     compare: 'Análisis Comparativo',
                     filter: 'Explorador Avanzado (Data Lab)',
-                    leagues: 'Ligas y Grupos'
+                    leagues: 'Ligas y Clasificaciones',
+                    agenda: 'Mi Agenda Personal'
                 };
                 return titles[this.currentView];
             },
@@ -573,8 +955,9 @@
                     clubs: 'Visión general de equipos, plantillas y estadísticas agregadas.',
                     clubProfile: 'Profundiza en la estructura y rendimiento del equipo.',
                     compare: 'Comparación visual híbrida (Porteros vs Jugadores).',
-                    filter: 'Aplica múltiples filtros para encontrar perfiles específicos.',
-                    leagues: 'Organización de clubes por competición.'
+                    filter: 'Visualiza la distribución de talento y filtra perfiles.',
+                    leagues: 'Tablas de clasificación y clubes por competición.',
+                    agenda: 'Gestiona tu lista de jugadores guardados.'
                 };
                 return subtitles[this.currentView];
             },
@@ -599,7 +982,8 @@
                             name: cName, 
                             logo: p['URL Escudo'], 
                             players: [],
-                            stats: { totalGoalsFor: 0, totalGoalsAgainst: 0, totalAge: 0, count: 0 }
+                            stats: { totalGoalsFor: 0, totalGoalsAgainst: 0, totalAge: 0, count: 0 },
+                            standingData: null 
                         };
                     }
                     clubs[cName].players.push(p);
@@ -610,8 +994,17 @@
                         clubs[cName].stats.count++;
                     }
                 });
+
                 Object.values(clubs).forEach(c => {
                     c.stats.avgAge = c.stats.count ? (c.stats.totalAge / c.stats.count).toFixed(1) : 0;
+                    
+                    const leagueName = c.players[0].leagueName;
+                    if (this.allStandings[leagueName]) {
+                        const match = this.allStandings[leagueName].find(t => 
+                            t.Equipo.toLowerCase().trim() === c.name.toLowerCase().trim()
+                        );
+                        if (match) c.standingData = match;
+                    }
                 });
                 return Object.values(clubs).sort((a,b) => a.name.localeCompare(b.name));
             },
@@ -661,15 +1054,31 @@
         },
         watch: {
             comparisonList: { deep: true, handler() { this.$nextTick(() => { if (this.currentView === 'compare') this.renderChart(); }); }},
-            currentView(newVal) { if (newVal === 'compare') { this.$nextTick(() => this.renderChart()); } },
-            allPlayers() { this.calculateMaxStats(); }
+            currentView(newVal) { 
+                if (newVal === 'compare') { this.$nextTick(() => this.renderChart()); }
+                if (newVal === 'filter') { this.$nextTick(() => this.triggerScatterUpdate()); }
+            },
+            allPlayers() { this.calculateMaxStats(); },
+            shortlist: { deep: true, handler(newVal) { localStorage.setItem('rclpro_shortlist', JSON.stringify(newVal)); }},
+            filteredTablePlayers() {
+                if (this.currentView === 'filter') {
+                    this.triggerScatterUpdate();
+                }
+            }
         },
         methods: {
-            isNumericColumn(colName) { return this.numericColumns.includes(colName); },
+            isNumericColumn(colName) { 
+                if(!colName) return false;
+                return this.numericColumns.includes(colName); 
+            },
             addFilter() { this.filters.push({ column: '', operator: 'contains', value: '', value2: '' }); },
             removeFilter(index) { if(this.filters.length > 1) { this.filters.splice(index, 1); } else { this.resetFilters(); } },
             resetFilters() { this.filters = [{ column: '', operator: 'contains', value: '', value2: '' }]; },
-            resetFilterValues(filter) { filter.value = ''; filter.value2 = ''; filter.operator = this.isNumericColumn(filter.column) ? 'gt' : 'contains'; },
+            resetFilterValues(filter) { 
+                filter.value = ''; 
+                filter.value2 = ''; 
+                filter.operator = this.isNumericColumn(filter.column) ? 'gt' : 'contains'; 
+            },
             cleanNumber(val) {
                 if (typeof val === 'number') return val;
                 if (!val) return 0;
@@ -685,35 +1094,85 @@
                     try {
                         const data = new Uint8Array(e.target.result);
                         const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        const leagueMaxes = {};
+
                         workbook.SheetNames.forEach(sheetName => {
                             const worksheet = workbook.Sheets[sheetName];
                             const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                            
+                            const maxConvo = Math.max(...jsonData.map(row => {
+                                const val = row['Convocados'];
+                                if(typeof val === 'number') return val;
+                                return 0;
+                            }));
+                            this.leagueMaxMatchdays[sheetName] = maxConvo > 0 ? maxConvo : 1;
+
                             const cleanData = jsonData.map((p, idx) => {
                                 const rawGoals = this.cleanNumber(p['Total Goles']);
+                                const minutes = this.cleanNumber(p['Minutos Jugados']);
                                 const isGK = p['Posición'] && p['Posición'].toLowerCase().includes('portero');
+                                const goalsForCalc = isGK ? 0 : rawGoals;
+                                
+                                const gp90 = minutes > 0 ? ((goalsForCalc / minutes) * 90).toFixed(2) : "0.00";
+                                const gc90 = minutes > 0 ? ((rawGoals / minutes) * 90).toFixed(2) : "0.00";
+
                                 return {
                                     ...p,
                                     id: sheetName + '_' + idx + '_' + Math.random().toString(36).substr(2, 5),
                                     leagueName: sheetName,
                                     isGK: isGK,
-                                    'Goles_Favor': isGK ? 0 : rawGoals,
+                                    'Goles_Favor': goalsForCalc,
                                     'Goles_Contra': isGK ? rawGoals : 0,
                                     'Total Goles': rawGoals,
-                                    'Minutos Jugados': this.cleanNumber(p['Minutos Jugados']),
+                                    'Minutos Jugados': minutes,
                                     'Edad': this.cleanNumber(p['Edad']),
                                     'Titular': this.cleanNumber(p['Titular']),
                                     'Convocados': this.cleanNumber(p['Convocados']),
                                     'Amarillas': this.cleanNumber(p['Amarillas']),
-                                    'Rojas': this.cleanNumber(p['Rojas'])
+                                    'Rojas': this.cleanNumber(p['Rojas']),
+                                    'GolesPer90': parseFloat(gp90),
+                                    'EncajadosPer90': parseFloat(gc90)
                                 };
                             });
-                            if (jsonData.length > 0 && this.headers.length === 0) { this.headers = Object.keys(jsonData[0]); }
+                            
+                            if (jsonData.length > 0 && this.headers.length === 0) { 
+                                this.headers = Object.keys(jsonData[0]); 
+                                this.headers.push('GolesPer90', 'EncajadosPer90');
+                            }
+                            
                             this.allPlayers = [...this.allPlayers, ...cleanData];
                         });
-                        setTimeout(() => { this.loading = false; this.currentView = 'players'; }, 800);
+                        setTimeout(() => { this.loading = false; }, 800); 
                     } catch (error) {
                         console.error(error);
-                        alert("Error al leer Excel.");
+                        alert("Error al leer Excel de Jugadores.");
+                        this.loading = false;
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            },
+            handleStandingsUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                this.loading = true;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        workbook.SheetNames.forEach(sheetName => {
+                            const worksheet = workbook.Sheets[sheetName];
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                            this.allStandings[sheetName] = jsonData;
+                        });
+                        setTimeout(() => { 
+                            this.loading = false; 
+                            alert("Clasificaciones importadas correctamente.");
+                        }, 800);
+                    } catch (error) {
+                        console.error(error);
+                        alert("Error al leer Excel de Clasificación.");
                         this.loading = false;
                     }
                 };
@@ -723,8 +1182,22 @@
                 const file = event.target.files[0];
                 if (file) this.appLogo = URL.createObjectURL(file);
             },
-            openPlayerProfile(player) { this.selectedPlayer = player; this.currentView = 'profile'; },
+            openPlayerProfile(player) { 
+                this.playerNotes = ''; // Reset notes on open
+                this.selectedPlayer = player; 
+                this.currentView = 'profile'; 
+            },
             openClubProfile(club) { this.selectedClub = club; this.currentView = 'clubProfile'; },
+            openClubFromStanding(teamName) {
+                const club = this.uniqueClubs.find(c => c.name.toLowerCase().trim() === teamName.toLowerCase().trim());
+                if (club) { this.openClubProfile(club); } else { alert("No se encontraron datos de plantilla para: " + teamName); }
+            },
+            
+            getTopScorers(teamName) {
+                const teamPlayers = this.allPlayers.filter(p => p['Equipo Actual'] === teamName);
+                return teamPlayers.sort((a, b) => b['Goles_Favor'] - a['Goles_Favor']).slice(0, 3);
+            },
+
             setDefaultImage(e) { e.target.src = "https://ui-avatars.com/api/?name=User&background=cbd5e1&color=fff"; },
             addToCompare(player) {
                 if (this.comparisonList.length >= 3) { alert("Máximo 3 jugadores para comparar"); return; }
@@ -733,30 +1206,120 @@
             removeFromCompare(index) { this.comparisonList.splice(index, 1); },
             calculateMaxStats() {
                 this.statMetrics.forEach(m => {
-                    const maxVal = Math.max(...this.allPlayers.map(p => p[m.key] || 0));
-                    m.max = maxVal > 0 ? maxVal : 10;
+                    if (m.key === 'TitularPercentage') {
+                        m.max = 100; 
+                    } else {
+                        const checkKey = m.key === 'GolesPer90' ? 'GolesPer90' : m.key;
+                        const maxVal = Math.max(...this.allPlayers.map(p => p[checkKey] || 0));
+                        m.max = maxVal > 0 ? maxVal : 1; 
+                        
+                        if (m.key === 'EncajadosPer90') {
+                             const maxEnc = Math.max(...this.allPlayers.map(p => p.EncajadosPer90 || 0));
+                             m.max = maxEnc > 0 ? maxEnc : 3.0; 
+                        }
+                    }
                 });
             },
             getPercentage(val, max) { return Math.min(100, ((val || 0) / max) * 100); },
-            renderChart() {
+            
+            getTitularPercentage(player) {
+                const maxMatchdays = this.leagueMaxMatchdays[player.leagueName] || 1; 
+                return parseFloat(((player.Titular / maxMatchdays) * 100).toFixed(1));
+            },
+
+            isShortlisted(player) {
+                return this.shortlist.some(p => p.id === player.id); 
+            },
+            toggleShortlist(player) {
+                const index = this.shortlist.findIndex(p => p.id === player.id);
+                if (index === -1) {
+                    this.shortlist.push(player); 
+                } else {
+                    this.shortlist.splice(index, 1); 
+                }
+            },
+            exportShortlist() {
+                if (this.shortlist.length === 0) return;
+                
+                const exportData = this.shortlist.map(p => ({
+                    Nombre: p.Nombre,
+                    Equipo: p['Equipo Actual'],
+                    Posicion: p.Posición,
+                    Edad: p.Edad,
+                    Minutos: p['Minutos Jugados'],
+                    Goles: p['Total Goles'],
+                    GolesPer90: p.GolesPer90, 
+                    EncajadosPer90: p.EncajadosPer90,
+                    Amarillas: p.Amarillas,
+                    Rojas: p.Rojas,
+                    URL_Ficha: p['URL Ficha']
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Agenda");
+                XLSX.writeFile(wb, "RCLPro_Agenda.xlsx");
+            },
+
+            // --- REPORT GENERATOR ---
+            generateReport() {
+                const element = document.getElementById('player-report-card');
+                
+                // Add temporary styling for capture
+                element.classList.add('p-8');
+                
+                html2canvas(element, {
+                    scale: 2, // High resolution
+                    useCORS: true,
+                    allowTaint: true,
+                    ignoreElements: (node) => node.classList.contains('no-capture'),
+                    onclone: (clonedDoc) => {
+                        const images = clonedDoc.getElementsByTagName('img');
+                        // Use a public CORS proxy to allow fetching external images
+                        for (let img of images) {
+                            if (img.src.startsWith('http')) {
+                                img.crossOrigin = "Anonymous";
+                                img.src = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(img.src);
+                            }
+                        }
+                    }
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Informe_${this.selectedPlayer.Nombre.replace(/\s+/g, '_')}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    
+                    element.classList.remove('p-8'); // Reset style
+                }).catch(err => {
+                    console.error("Error generating report", err);
+                    alert("Error al generar imagen. Puede ser bloqueo de seguridad del navegador.");
+                    element.classList.remove('p-8');
+                });
+            },
+
+            // --- CHART RENDERERS ---
+
+            renderChart() { // RADAR
                 const ctx = document.getElementById('radarChart');
                 if (!ctx || this.comparisonList.length === 0) return;
-                if (this.radarChartInstance) this.radarChartInstance.destroy();
-
-                const maxGoalsFor = this.statMetrics.find(m => m.key === 'Goles_Favor').max || 10;
-                const maxGoalsAgainst = this.statMetrics.find(m => m.key === 'Goles_Contra').max || 10;
+                if (this.radarChartInstance) {
+                    this.radarChartInstance.destroy();
+                    this.radarChartInstance = null;
+                }
 
                 const datasets = this.comparisonList.map((player, i) => {
-                    // Hybrid Logic: If GK use Goals Against, if Player use Goals For
-                    const goalMetric = player.isGK ? player['Goles_Contra'] : player['Goles_Favor'];
-                    const goalMax = player.isGK ? maxGoalsAgainst : maxGoalsFor;
-                    
+                    const goalMetric = player.isGK ? player['EncajadosPer90'] : player['GolesPer90'];
+                    const goalMax = player.isGK ? 
+                        this.statMetrics.find(m=>m.key==='EncajadosPer90').max : 
+                        this.statMetrics.find(m=>m.key==='GolesPer90').max;
+                    const titularPct = this.getTitularPercentage(player);
+
                     return {
                         label: player.Nombre + (player.isGK ? ' (GK)' : ''),
                         data: [
                             this.getPercentage(goalMetric, goalMax),
                             this.getPercentage(player['Minutos Jugados'], this.statMetrics.find(m=>m.key==='Minutos Jugados').max),
-                            this.getPercentage(player['Titular'], this.statMetrics.find(m=>m.key==='Titular').max),
+                            titularPct, 
                             this.getPercentage(player['Convocados'], this.statMetrics.find(m=>m.key==='Convocados').max),
                             Math.min(100, (player.Edad / 40) * 100) 
                         ],
@@ -772,7 +1335,7 @@
                 this.radarChartInstance = new Chart(ctx, {
                     type: 'radar',
                     data: {
-                        labels: ['Goles / Encajados', 'Minutos', 'Titular', 'Convocados', 'Veteranía'],
+                        labels: ['Goles / Encajados (p90)', 'Minutos', '% Titularidad', 'Convocatorias', 'Veteranía'],
                         datasets: datasets
                     },
                     options: {
@@ -790,16 +1353,94 @@
                         },
                         plugins: {
                             legend: { position: 'bottom', labels: { font: { family: 'Inter' } } },
+                            tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + Math.round(context.raw) + '%'; } } }
+                        }
+                    }
+                });
+            },
+
+            triggerScatterUpdate() {
+                if (this.scatterDebounce) clearTimeout(this.scatterDebounce);
+                this.scatterDebounce = setTimeout(() => {
+                    this.renderScatterChart();
+                }, 300); 
+            },
+
+            renderScatterChart() {
+                const ctx = document.getElementById('scatterChart');
+                if (!ctx) return; 
+                
+                if (this.scatterChartInstance) {
+                    this.scatterChartInstance.destroy();
+                    this.scatterChartInstance = null; 
+                }
+
+                const dataPoints = this.filteredTablePlayers.map(p => {
+                    let yVal = 0;
+                    if (this.scatterMetric === 'Minutos Jugados') {
+                        yVal = p['Minutos Jugados'];
+                    } else if (this.scatterMetric === 'Total Goles') {
+                        yVal = p.isGK ? p['Goles_Contra'] : p['Goles_Favor'];
+                    } else if (this.scatterMetric === 'GolesPer90') {
+                        yVal = p['GolesPer90'];
+                    } else if (this.scatterMetric === 'EncajadosPer90') {
+                        yVal = p['EncajadosPer90'];
+                    } else if (this.scatterMetric === 'TitularPercentage') {
+                        yVal = this.getTitularPercentage(p);
+                    } else {
+                        yVal = p[this.scatterMetric] || 0;
+                    }
+
+                    return {
+                        x: p.Edad || 0,
+                        y: yVal || 0,
+                        player: p
+                    };
+                });
+
+                this.scatterChartInstance = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Jugadores',
+                            data: dataPoints,
+                            backgroundColor: 'rgba(14, 165, 233, 0.6)',
+                            borderColor: '#0ea5e9',
+                            borderWidth: 1,
+                            pointRadius: 5,
+                            pointHoverRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false, 
+                        scales: {
+                            x: {
+                                title: { display: true, text: 'Edad' },
+                                min: 15,
+                                max: 40
+                            },
+                            y: {
+                                title: { display: true, text: this.scatterMetric },
+                                beginAtZero: true
+                            }
+                        },
+                        plugins: {
                             tooltip: {
                                 callbacks: {
-                                    label: function(context) {
-                                        // Custom Tooltip to show real values instead of %
-                                        const datasetIndex = context.datasetIndex;
-                                        const dataIndex = context.dataIndex;
-                                        const player = this.comparisonList ? this.comparisonList[datasetIndex] : null; // Access via closure if needed, tricky in ChartJS callback scope
-                                        return context.dataset.label + ': ' + Math.round(context.raw) + '%';
+                                    label: (context) => {
+                                        const p = context.raw.player;
+                                        return `${p.Nombre} (${p.Edad} años, ${context.raw.y})`;
                                     }
                                 }
+                            }
+                        },
+                        onClick: (e, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                const p = this.scatterChartInstance.data.datasets[0].data[index].player;
+                                this.openPlayerProfile(p);
                             }
                         }
                     }
@@ -807,9 +1448,20 @@
             }
         },
         mounted() {
+            const savedShortlist = localStorage.getItem('rclpro_shortlist');
+            if (savedShortlist) {
+                try {
+                    this.shortlist = JSON.parse(savedShortlist);
+                } catch(e) {
+                    console.error("Error loading shortlist", e);
+                }
+            }
             this.calculateMaxStats();
         }
     }).mount('#app');
 </script>
 </body>
 </html>
+</body>
+</html>
+
